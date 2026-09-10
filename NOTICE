@@ -1,0 +1,17 @@
+Grove Rally
+===========
+
+This game includes source derived from Trigger Rally Online Edition:
+
+  https://github.com/CodeArtemis/TriggerRally
+  Revision 079ac53216b74598b652ce3bf11478beb5c6832b
+  Copyright (C) 2012-2013 Code Artemis / jareiko (http://www.jareiko.net/)
+  License: GPL-3.0 (see LICENSE). Their Content terms do not apply here
+  because no Trigger Rally maps, cars, sounds or textures are shipped.
+
+Local files under src/upstream/ are those physics/helper scripts with AMD
+wrappers replaced by ES module imports. Three.js is used only for Vector2,
+Vector3, Quaternion and Matrix4, which those scripts already called THREE.
+
+Original to Grove Rally: orchard heightfield and checkpoints, toy-car
+numbers, Phaser garden drawing, Mini Arcade shell and tests.

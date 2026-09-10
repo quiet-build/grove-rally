@@ -1,0 +1,9 @@
+/component.js
+  Cache-Control: public, no-cache, must-revalidate
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=0, must-revalidate
