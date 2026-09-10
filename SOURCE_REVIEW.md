@@ -20,4 +20,4 @@ Why Phaser + Three math, not Three.js rendering: Mini Arcade games stay on Phase
 
 Verification: `pnpm test` (Progress skip, sim motion, pause/retry, right-steer toward +X, a seeker finishes the loop). Typecheck/build/e2e run after install. Local Chromium play after the turn invert reached post 3 on the dirt; pause froze the clock; restart returned to 0.0. Physical iPhone/Android and Safari were not available.
 
-Remaining: Cloudflare Pages project `grove-rally` after the GitHub repo exists, then host catalog publish. No physical-device or Safari pass yet.
+Remaining: Host catalog publish so playminiarcade.com lists the fourteenth game. No physical-device or Safari pass yet.
