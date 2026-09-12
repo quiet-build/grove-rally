@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { Quaternion, Vector3 } from "three";
 import { RallySession } from "./session";
-import { COURSE } from "./track";
+import { COURSE, START } from "./track";
+import { playCar } from "./car";
 import { chassisToView } from "./chassis-view";
 
 function viewAxes(s: RallySession) {
@@ -32,4 +33,38 @@ describe("start orientation", () => {
     expect(post.roof.y).toBeGreaterThan(0.5);
     expect(Math.abs(post.fwd.y)).toBeLessThan(0.2);
   });
+});
+
+it.each([0, Math.PI / 2, Math.PI, -Math.PI / 2])('visible nose follows physical forward at yaw %s', yaw => {
+  const physics = new Quaternion(1,1,1,1).normalize().premultiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),yaw));
+  const forward = new Vector3(0,0,1).applyQuaternion(physics);
+  const expected = new Vector3(forward.x,forward.z,forward.y);
+  const shown = new Vector3(0,0,1).applyQuaternion(chassisToView(physics,new Quaternion()));
+  expect(shown.dot(expected)).toBeCloseTo(1,6);
+});
+
+it('keeps the nose aligned after an actual flip and automatic recovery', () => {
+ const s=new RallySession();s.start();
+ for(let i=0;i<80;i++)s.update(.05);
+ (s.body!.ori as unknown as Quaternion).premultiply(new Quaternion().setFromAxisAngle(new Vector3(1,0,0),Math.PI));
+ s.body!.updateMatrices();
+ for(let i=0;i<220;i++)s.update(.05);
+ const before=new Vector3(s.body!.pos.x,s.body!.pos.y,s.body!.pos.z);
+ const shown=viewAxes(s).fwd;
+ s.throttle=1;
+ for(let i=0;i<80;i++)s.update(.05);
+ const delta=new Vector3(s.body!.pos.x-before.x,s.body!.pos.z-before.z,s.body!.pos.y-before.y);
+ expect(delta.dot(shown)).toBeGreaterThan(2);
+});
+
+it.each([0, Math.PI / 2, Math.PI, -Math.PI / 2])('play car accelerates along its visible nose at yaw %s', yaw => {
+  const s = new RallySession(undefined, undefined, { ...START, rot: [0, 0, yaw] }, playCar);
+  s.start();
+  for (let i = 0; i < 80; i++) s.update(0.05);
+  const before = { ...s.body!.pos };
+  const nose = viewAxes(s).fwd;
+  s.throttle = 1;
+  for (let i = 0; i < 60; i++) s.update(0.05);
+  const delta = new Vector3(s.body!.pos.x - before.x, s.body!.pos.z - before.z, s.body!.pos.y - before.y);
+  expect(delta.dot(nose)).toBeGreaterThan(2);
 });

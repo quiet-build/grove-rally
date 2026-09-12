@@ -42,6 +42,7 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
   const board = useRef<HTMLDivElement>(null);
   const primary = useRef<HTMLButtonElement>(null);
   const keys = useRef(new Set<string>());
+  const pointers = useRef(new Map<number, { control: "turn" | "throttle" | "brake" | "handbrake"; value: number }>());
   const active = view.status === "countdown" || view.status === "racing";
   const modal = !active;
   const total = session.course.length;
@@ -50,8 +51,14 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
     session.throttle = Number(keys.current.has("arrowup") || keys.current.has("w"));
     session.brake = Number(keys.current.has("arrowdown") || keys.current.has("s"));
     session.handbrake = Number(keys.current.has(" ") || keys.current.has("space"));
+    for (const { control, value } of pointers.current.values()) session[control] += value;
+    session.turn = Math.max(-1, Math.min(1, session.turn));
+    session.throttle = Math.min(1, session.throttle);
+    session.brake = Math.min(1, session.brake);
+    session.handbrake = Math.min(1, session.handbrake);
   };
-  const pause = () => { keys.current.clear(); applyKeys(); session.pause(); chime.suspend(); };
+  const reset = () => { session.resetToLastPost(); applyKeys(); board.current?.focus({ preventScroll: true }); };
+  const pause = () => { keys.current.clear(); pointers.current.clear(); applyKeys(); session.pause(); chime.suspend(); };
   const resume = () => { session.resume(); chime.unlock(); };
   const start = () => { session.start(); chime.unlock(); };
   useEffect(() => {
@@ -73,8 +80,7 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
       onError?.(error);
     }
     const blur = () => {
-      if (fullscreenEl()) return;
-      keys.current.clear(); applyKeys(); session.pause(); chime.suspend();
+      keys.current.clear(); pointers.current.clear(); applyKeys(); session.pause(); chime.suspend();
     };
     const visibility = () => { if (document.hidden) blur(); };
     const onFs = () => {
@@ -94,25 +100,27 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
     };
   }, [session, chime]);
   useEffect(() => {
-    keys.current.clear(); applyKeys();
+    if (modal) { keys.current.clear(); pointers.current.clear(); applyKeys(); }
     if (modal) {
       if ((view.status !== "paused" && view.status !== "ready") || shell.current?.contains((shell.current.getRootNode() as Document | ShadowRoot).activeElement) || (view.status === "ready" && !(shell.current?.getRootNode() instanceof ShadowRoot)))
         primary.current?.focus({ preventScroll: true });
     } else board.current?.focus({ preventScroll: true });
-  }, [view.status, modal]);
+  }, [modal]);
   useEffect(() => {
     if (view.status === "finished" && view.time > 0 && (best === 0 || view.time < best)) { setBest(view.time); saveBest(view.time); }
   }, [view.status, view.time, best]);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || (e.target instanceof HTMLElement && e.target.closest("input, textarea, select, [contenteditable=true]"))) return;
+      const path = e.composedPath();
+      if (e.metaKey || e.ctrlKey || e.altKey || !path.includes(shell.current!) || path.some(node => node instanceof HTMLElement && node.matches("input, textarea, select, [contenteditable=true]"))) return;
+      if ((e.key === " " || e.key === "Enter") && path.some(node => node instanceof HTMLElement && node.matches("button, a"))) return;
       const key = e.key.toLowerCase();
       if (["arrowleft", "arrowright", "arrowup", "arrowdown", "a", "d", "w", "s", " ", "space"].includes(key) && active) {
         e.preventDefault(); keys.current.add(key); applyKeys();
       }
       if (e.repeat) return;
       if (key === "p") { e.preventDefault(); active ? pause() : view.status === "paused" && resume(); }
-      if (key === "r" && (active || view.status === "paused")) { e.preventDefault(); session.resetToLastPost(); }
+      if (key === "r" && (active || view.status === "paused")) { e.preventDefault(); reset(); }
       if (key === "escape") {
         if (fullscreenEl()) return;
         e.preventDefault();
@@ -125,7 +133,7 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
   }, [active, view.status]);
   const status = view.status;
   const toggleFullscreen = () => {
-    const el = board.current;
+    const el = board.current?.closest<HTMLElement>(".play-area");
     if (!el) return;
     const doc = document as Document & { webkitExitFullscreen?: () => Promise<void> | void };
     const node = el as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
@@ -134,16 +142,20 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
       return;
     }
     const go = node.requestFullscreen?.bind(node);
-    if (go) void go({ navigationUI: "hide" }).catch(() => void node.requestFullscreen?.());
+    if (go) void go({ navigationUI: "hide" }).catch(() => { board.current?.focus({ preventScroll: true }); });
     else node.webkitRequestFullscreen?.();
     board.current?.focus({ preventScroll: true });
   };
-  const hold = (set: (v: number) => void, value: number) => ({
-    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => { e.currentTarget.setPointerCapture(e.pointerId); set(value); },
-    onPointerUp: () => set(0),
-    onPointerCancel: () => set(0),
-    onLostPointerCapture: () => set(0),
-  });
+  const hold = (control: "turn" | "throttle" | "brake" | "handbrake", value: number) => {
+    const release = (e: React.PointerEvent<HTMLButtonElement>) => { pointers.current.delete(e.pointerId); applyKeys(); };
+    return {
+      onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        pointers.current.set(e.pointerId, { control, value }); applyKeys();
+      },
+      onPointerUp: release, onPointerCancel: release, onLostPointerCapture: release,
+    };
+  };
   return <div ref={shell} onPointerDownCapture={event => {
     const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button:not(:disabled)") : null;
     if (button && event.button === 0) { event.preventDefault(); button.focus({ preventScroll: true }); }
@@ -154,14 +166,14 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
       <p className="intro">One little car.<br/>A Grove Valley loop of dirt arches.</p>
       <section className="level-ticket" aria-label="Course progress"><div><span>Checkpoints</span><strong data-testid="level">{Math.min(view.checkpoint + 1, total)} / {total}</strong></div><p>Grove Valley loop</p><p className="challenge">Drive past each post in order. Flip and the car sits itself back up. R returns you to the last post.</p><label htmlFor="progress">{view.checkpoint} of {total} posts passed</label><progress id="progress" max={total} value={view.checkpoint}/></section>
       <div className="scores"><div><span>Time</span><strong data-testid="score">{view.time.toFixed(1)}</strong></div><div><span>Best</span><strong data-testid="best">{best ? best.toFixed(1) : "—"}</strong></div><div><span>Next</span><strong>{view.checkpoint >= total ? "Gate" : `Post ${view.checkpoint + 1}`}</strong></div></div>
-      <div className="utilities"><button type="button" className="secondary" disabled={!active} onClick={pause}>Pause</button><button type="button" className="secondary" disabled={view.status === "ready" || view.status === "finished"} onClick={() => session.resetToLastPost()}>Last post</button><button type="button" className="secondary" aria-pressed={!muted} onClick={() => { const next = !muted; setMuted(next); session.muted = next; chime.muted = next; next ? chime.suspend() : chime.unlock(); }}>{muted ? "Sound off" : "Sound on"}</button><button type="button" className="secondary" aria-pressed={fullscreen} onClick={toggleFullscreen}>{fullscreen ? "Exit full" : "Fullscreen"}</button></div>
+      <div className="utilities"><button type="button" className="secondary" disabled={!active} onClick={pause}>Pause</button><button type="button" className="secondary" disabled={view.status === "ready" || view.status === "finished"} onClick={reset}>Last post</button><button type="button" className="secondary" aria-pressed={!muted} onClick={() => { const next = !muted; setMuted(next); session.muted = next; chime.muted = next; next ? chime.suspend() : chime.unlock(); }}>{muted ? "Sound off" : "Sound on"}</button><button type="button" className="secondary" aria-pressed={fullscreen} onClick={toggleFullscreen}>{fullscreen ? "Exit full" : "Fullscreen"}</button></div>
     </aside><section className="play-area" aria-label="Orchard rally">
       <div className="board-heading"><span>Grove Rally · peach orchard</span><span className="orientation-hint">Rotate ↻ for wide view</span><span>{status === "racing" ? "On course" : status === "countdown" ? "Lights" : "A quiet garden gate"}</span></div>
       <div className="board" ref={board} tabIndex={0} role="region" aria-label="Orchard course" aria-describedby="instructions" onPointerDown={() => board.current?.focus({ preventScroll: true })}>
         <div className="canvas-host" ref={host} aria-hidden="true"/>
-        <div className="race-hud" aria-hidden="true">
-          <div className="hud-time"><span>TIME</span><strong data-testid="hud-time">{raceClock(view.time)}</strong></div>
-          <div className="hud-ckpt"><span>CKPT</span><strong>{Math.min(view.checkpoint + 1, total)} / {total}</strong></div>
+        <div className="race-hud">
+          <div className="hud-time" aria-hidden="true"><span>TIME</span><strong data-testid="hud-time">{raceClock(view.time)}</strong></div>
+          <div className="hud-ckpt" aria-hidden="true"><span>CKPT</span><strong>{Math.min(view.checkpoint + 1, total)} / {total}</strong></div>
           {(status === "countdown" || status === "racing") && <div className="hud-speed">{view.speed} km/h</div>}
           {status === "countdown" && /^\d+$/.test(view.message) && <div className="hud-count">{view.message}</div>}
           {(view.flipped || view.recovering) && (
@@ -172,8 +184,7 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
                 className="hud-recover-btn"
                 onClick={event => {
                   event.stopPropagation();
-                  session.resetToLastPost();
-                  board.current?.focus({ preventScroll: true });
+                  reset();
                 }}
               >
                 Reset to track (R)
@@ -182,7 +193,7 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
           )}
         </div>
         <div className="board-actions">
-          <button type="button" className="full-btn" aria-label="Reset to last post" disabled={!active} onClick={event => { event.stopPropagation(); session.resetToLastPost(); board.current?.focus({ preventScroll: true }); }}>↺ Post (R)</button>
+          <button type="button" className="full-btn" aria-label="Reset to last post" disabled={!active} onClick={event => { event.stopPropagation(); reset(); }}>↺ Post (R)</button>
           <button type="button" className="full-btn" aria-pressed={fullscreen} aria-label={fullscreen ? "Exit fullscreen" : "Open fullscreen"} onClick={event => { event.stopPropagation(); toggleFullscreen(); }}>{fullscreen ? "Exit full" : "Fullscreen"}</button>
         </div>
         {modal && <div className="overlay"><section className="start-card" aria-labelledby="state-title"><div className="seal" aria-hidden="true">❀</div>
@@ -194,14 +205,14 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
         </section></div>}
       </div>
       <div className="controls">
-        <button type="button" className="arrow" aria-label="Steer left" disabled={!active} {...hold(v => { session.turn = -v; }, 1)}>←</button>
-        <button type="button" className="launch" aria-label="Accelerate" disabled={!active} {...hold(v => { session.throttle = v; }, 1)}>Accelerate</button>
-        <button type="button" className="arrow" aria-label="Steer right" disabled={!active} {...hold(v => { session.turn = v; }, 1)}>→</button>
+        <button type="button" className="arrow" aria-label="Steer left" disabled={!active} {...hold("turn", -1)}>←</button>
+        <button type="button" className="launch" aria-label="Accelerate" disabled={!active} {...hold("throttle", 1)}>Accelerate</button>
+        <button type="button" className="arrow" aria-label="Steer right" disabled={!active} {...hold("turn", 1)}>→</button>
       </div>
       <div className="controls" style={{ gridTemplateColumns: "1fr 1.2fr 1fr", paddingTop: 0 }}>
-        <button type="button" className="arrow" aria-label="Brake" disabled={!active} {...hold(v => { session.brake = v; }, 1)}>Brake</button>
-        <button type="button" className="arrow reset-btn" aria-label="Reset to last post" disabled={!active} onClick={() => { session.resetToLastPost(); board.current?.focus({ preventScroll: true }); }}>↺ Post</button>
-        <button type="button" className="arrow" aria-label="Handbrake" disabled={!active} {...hold(v => { session.handbrake = v; }, 1)}>Handbrake</button>
+        <button type="button" className="arrow" aria-label="Brake" disabled={!active} {...hold("brake", 1)}>Brake</button>
+        <button type="button" className="arrow reset-btn" aria-label="Reset to last post" disabled={!active} onClick={reset}>↺ Post</button>
+        <button type="button" className="arrow" aria-label="Handbrake" disabled={!active} {...hold("handbrake", 1)}>Handbrake</button>
       </div>
       <p id="instructions" style={{ margin: 0, padding: "8px" }}>Hold accelerate · Space handbrake · R last post · ← → / A D · P pause</p>
     </section></div><footer><span>One car. One orchard. No ads.</span><span>Driving logic from Trigger Rally OE · original garden art.</span></footer>

@@ -16,6 +16,7 @@ import {
   MeshBuilder,
   ParticleSystem,
   Quaternion,
+  RawTexture,
   Scene,
   ShaderMaterial,
   ShadowGenerator,
@@ -31,7 +32,7 @@ import type { RallySession } from "./session";
 import { DriveAudio } from "./drive-audio";
 import { chassisToView } from "./chassis-view";
 import util from "../upstream/util.js";
-import { Quaternion as ThreeQuat } from "three";
+import { Vector3 as PhysicsVector, Quaternion as ThreeQuat } from "three";
 
 const pull = util.PULLTOWARD as (val: number, target: number, delta: number) => number;
 /** Trigger Rally chase is [0,1.2,-3] in mesh space (Y up, −Z behind). Pulled back so this mesh is not clipped. */
@@ -61,7 +62,6 @@ export class BabylonView {
   private camOff = new Vector3();
   private carYup = new Quaternion();
   private chassisView = new ThreeQuat();
-  private sky: Mesh | null = null;
   private dust: ParticleSystem | null = null;
   private cpRing: TransformNode | null = null;
   private cpHint: TransformNode | null = null;
@@ -73,6 +73,7 @@ export class BabylonView {
 
   constructor(canvas: HTMLCanvasElement, private session: RallySession, onReady: () => void) {
     this.engine = new Engine(canvas, true);
+    this.engine.renderEvenInBackground = false;
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color4(0.867, 0.933, 1, 1);
     this.scene.fogMode = Scene.FOGMODE_EXP2;
@@ -156,11 +157,11 @@ export class BabylonView {
         if (!sim) return;
         // vehicle.js / RenderCar: ride along local Y in mesh space.
         wheel.root.position.set(
-          sim.cfg.pos[0] - toyCar.center[0],
+          -(sim.cfg.pos[0] - toyCar.center[0]),
           sim.cfg.pos[1] - toyCar.center[1] + sim.ridePos,
           sim.cfg.pos[2] - toyCar.center[2],
         );
-        wheel.root.rotation.y = vehicle.getWheelTurnPos(sim);
+        wheel.root.rotation.y = -vehicle.getWheelTurnPos(sim);
         wheel.mesh.rotation.x = sim.spinPos;
       });
       this.carRoot.computeWorldMatrix(true);
@@ -178,7 +179,6 @@ export class BabylonView {
       if (dist < 2.2 && dist > 0.001) this.camPos.copyFrom(this.carRoot.position).addInPlace(fromCar.scale(2.2 / dist));
       this.camera.position.copyFrom(this.camPos);
       this.camera.setTarget(toView(interp.pos.x, interp.pos.y, interp.pos.z + 0.85));
-      if (this.sky) this.sky.position.copyFrom(this.camera.position);
       if (this.dust) {
         const speed = Math.hypot(body.linVel.x, body.linVel.y);
         const handbraking = this.session.handbrake > 0.1;
@@ -216,15 +216,17 @@ export class BabylonView {
   private buildTerrain() {
     const map = this.session.terrain.source.maps.height;
     const step = Math.max(1, Math.floor(map.width / 256));
-    const cols = Math.floor((map.width - 1) / step);
-    const rows = Math.floor((map.height - 1) / step);
+    const minX = Math.min(0, Math.floor((Math.min(...this.session.course.map(cp => cp.pos[0]), this.session.gate.pos[0]) - 128) / map.scale.x));
+    const minY = Math.min(0, Math.floor((Math.min(...this.session.course.map(cp => cp.pos[1]), this.session.gate.pos[1]) - 128) / map.scale.y));
+    const cols = Math.ceil((map.width - 1 - minX) / step);
+    const rows = Math.ceil((map.height - 1 - minY) / step);
     const positions: number[] = [];
     const indices: number[] = [];
-    const sample = (ix: number, iy: number) => map.data[ix + iy * map.width] * map.scale.z;
+    const sample = (ix: number, iy: number) => map.data[((ix % map.width + map.width) % map.width) + ((iy % map.height + map.height) % map.height) * map.width] * map.scale.z;
     for (let row = 0; row <= rows; row++) {
-      const iy = Math.min(map.height - 1, row * step);
+      const iy = minY + row * step;
       for (let col = 0; col <= cols; col++) {
-        const ix = Math.min(map.width - 1, col * step);
+        const ix = minX + col * step;
         const x = ix * map.scale.x;
         const y = iy * map.scale.y;
         positions.push(x, sample(ix, iy), y);
@@ -253,11 +255,13 @@ export class BabylonView {
   }
 
   private terrainMaterial() {
-    const wrap = (url: string) => {
-      const tex = new Texture(url, this.scene);
+    const wrap = (name: string, url: string, color: number[]) => {
+      const fallback = RawTexture.CreateRGBTexture(new Uint8Array(color), 1, 1, this.scene, false);
+      material.setTexture(name, fallback);
+      const tex = new Texture(new URL(url, import.meta.url).href, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE,
+        () => { if (!this.scene.isDisposed) material.setTexture(name, tex); });
       tex.wrapU = Texture.WRAP_ADDRESSMODE;
       tex.wrapV = Texture.WRAP_ADDRESSMODE;
-      return tex;
     };
     const pts: number[] = [];
     this.session.course.forEach(cp => pts.push(cp.pos[0], cp.pos[1]));
@@ -267,9 +271,9 @@ export class BabylonView {
       uniforms: ["world", "worldView", "worldViewProjection", "vSunDir", "vFogColor", "fogDensity", "nCpts", "cpts", "gate", "first", "lightMatrix", "hasShadow"],
       samplers: ["tDirt", "tRock", "tDetail", "shadowSampler"],
     });
-    material.setTexture("tDirt", wrap("/tr/textures/dirt.jpg"));
-    material.setTexture("tRock", wrap("/tr/textures/rock.jpg"));
-    material.setTexture("tDetail", wrap("/tr/textures/heightdetail1.jpg"));
+    wrap("tDirt", "/tr/textures/dirt.jpg", [153,120,80]);
+    wrap("tRock", "/tr/textures/rock.jpg", [120,125,110]);
+    wrap("tDetail", "/tr/textures/heightdetail1.jpg", [128,128,128]);
     material.setVector3("vSunDir", SUN_DIR);
     material.setColor3("vFogColor", this.scene.fogColor);
     material.setFloat("fogDensity", this.scene.fogDensity);
@@ -301,7 +305,6 @@ export class BabylonView {
     sky.ignoreCameraMaxZ = true;
     sky.infiniteDistance = true;
     sky.isPickable = false;
-    this.sky = sky;
   }
 
   private buildPosts() {
@@ -311,6 +314,7 @@ export class BabylonView {
   private async dressCourse() {
     const arch = await this.loadScene("/tr/meshes/arch.r54.js", "/tr/textures/archtex.jpg", "arch");
     const chevron = await this.loadScene("/tr/meshes/chevron.r54.js", "/tr/textures/chevron.jpg", "chevron");
+    if (this.scene.isDisposed) return;
     if (arch) {
       arch.setEnabled(false);
       this.session.course.forEach((cp, i) => {
@@ -344,6 +348,7 @@ export class BabylonView {
   private async buildScenery() {
     const tree = await this.loadScene("/tr/scenery/tree36/tree36.js", "/tr/scenery/tree36/diffuse.png", "tree", 0.5);
     const wood = await this.loadScene("/tr/scenery/wood_el1/wood_el1.js", "/tr/scenery/wood_el1/wood_elements1.jpg", "wood");
+    if (this.scene.isDisposed) return;
     if (tree) {
       tree.setEnabled(false);
       this.scatterTiles(tree, 32, 0.007, 0.78, 1.05, 1.9);
@@ -375,6 +380,7 @@ export class BabylonView {
     for (let tx = Math.floor(minX / tileSize); tx <= Math.floor(maxX / tileSize); tx++) {
       for (let ty = Math.floor(minY / tileSize); ty <= Math.floor(maxY / tileSize); ty++) {
         const rnd = tileRng(tx, ty, source.name);
+        const tileContacts: Array<PhysicsVector & { radius: number }> = [];
         const count = Math.floor(density * tileSize * tileSize);
         for (let i = 0; i < count; i++) {
           const x = (tx + rnd()) * tileSize;
@@ -386,7 +392,15 @@ export class BabylonView {
           inst.position.copyFrom(toView(x, y, contact.surfacePos.z));
           inst.scaling.setAll(minScale + (maxScale - minScale) * rnd());
           inst.rotation.y = rnd() * Math.PI * 2;
+          // Simple trunk/rail proxies feed the existing Trigger Rally contact solver.
+          const points = [-0.6, 0, 0.6].map(offset => {
+            const xOffset = source.name === "wood" ? offset * inst.scaling.x * Math.cos(inst.rotation.y) : 0;
+            const yOffset = source.name === "wood" ? offset * inst.scaling.x * Math.sin(inst.rotation.y) : 0;
+            return Object.assign(new PhysicsVector(x + xOffset, y + yOffset, contact.surfacePos.z + (0.5 + (source.name === "tree" ? offset + 0.6 : 0)) * inst.scaling.y), { radius: (source.name === "tree" ? 0.45 : 0.35) * inst.scaling.x });
+          });
+          tileContacts.push(...points);
         }
+        if (tileContacts.length) this.session.addSceneryCollision(tileContacts);
       }
     }
   }
@@ -409,9 +423,10 @@ export class BabylonView {
   }
 
   private async loadScene(url: string, textureUrl: string, name: string, alphaTest?: number) {
-    const response = await fetch(url).catch(() => null);
+    const response = await fetch(new URL(url, import.meta.url)).catch(() => null);
     if (!response?.ok) return null;
-    const parsed = parseThreeScene(await response.text());
+    const parsed = await response.text().then(parseThreeScene).catch(() => null);
+    if (!parsed || this.scene.isDisposed) return null;
     const mesh = new Mesh(name, this.scene);
     const vertex = new VertexData();
     vertex.positions = parsed.positions;
@@ -421,7 +436,7 @@ export class BabylonView {
     if (!vertex.normals.length) VertexData.ComputeNormals(parsed.positions, parsed.indices, vertex.normals = []);
     vertex.applyToMesh(mesh);
     const material = new StandardMaterial(`${name}mat`, this.scene);
-    const tex = new Texture(textureUrl, this.scene, false, false);
+    const tex = new Texture(new URL(textureUrl, import.meta.url).href, this.scene, false, false);
     material.diffuseTexture = tex;
     material.specularColor = new Color3(0.12, 0.12, 0.12);
     material.backFaceCulling = false;
@@ -504,7 +519,7 @@ export class BabylonView {
     emitter.position.set(0, 0.05, -1.2);
     emitter.isVisible = false;
     const dust = new ParticleSystem("dust", 500, this.scene);
-    dust.particleTexture = new Texture("/tr/textures/dust.png", this.scene);
+    dust.particleTexture = new Texture(new URL("/tr/textures/dust.png", import.meta.url).href, this.scene);
     dust.emitter = emitter;
     dust.isLocal = true;
     dust.minEmitBox = new Vector3(-0.7, 0, -0.35);
@@ -532,6 +547,7 @@ export class BabylonView {
   private async buildCar() {
     const bodyMesh = await this.loadMesh("/tr/meshes/car1-body.json", "/tr/meshes/car1-diff.jpg", "body");
     const wheelMesh = await this.loadMesh("/tr/meshes/car1-wheel.json", "/tr/meshes/car1-diff.jpg", "wheel");
+    if (this.scene.isDisposed) return;
     const body = bodyMesh ?? MeshBuilder.CreateBox("body", { width: 1.7, height: 1.1, depth: 3.4 }, this.scene);
     this.solidCar(body);
     this.shadow.addShadowCaster(body);
@@ -542,7 +558,7 @@ export class BabylonView {
     toyCar.wheels.forEach((cfg, i) => {
       const root = new TransformNode(`wheel${i}`, this.scene);
       root.parent = this.carRoot;
-      root.position.set(cfg.pos[0] - toyCar.center[0], cfg.pos[1] - toyCar.center[1], cfg.pos[2] - toyCar.center[2]);
+      root.position.set(-(cfg.pos[0] - toyCar.center[0]), cfg.pos[1] - toyCar.center[1], cfg.pos[2] - toyCar.center[2]);
       const mesh = wheelMesh ? wheelMesh.clone(`wheelmesh${i}`)! : MeshBuilder.CreateCylinder(`w${i}`, { height: 0.22, diameter: cfg.radius * 2 }, this.scene);
       this.solidCar(mesh);
       this.shadow.addShadowCaster(mesh);
@@ -569,9 +585,10 @@ export class BabylonView {
   }
 
   private async loadMesh(url: string, textureUrl: string, name: string) {
-    const response = await fetch(url).catch(() => null);
+    const response = await fetch(new URL(url, import.meta.url)).catch(() => null);
     if (!response?.ok) return null;
-    const parsed = parseThreeJson(await response.text());
+    const parsed = await response.text().then(parseThreeJson).catch(() => null);
+    if (!parsed || this.scene.isDisposed) return null;
     const mesh = new Mesh(name, this.scene);
     const vertex = new VertexData();
     vertex.positions = parsed.positions;
@@ -581,7 +598,7 @@ export class BabylonView {
     if (!vertex.normals.length) VertexData.ComputeNormals(parsed.positions, parsed.indices, vertex.normals = []);
     vertex.applyToMesh(mesh);
     const material = new StandardMaterial(`${name}mat`, this.scene);
-    material.diffuseTexture = new Texture(textureUrl, this.scene, false, false);
+    material.diffuseTexture = new Texture(new URL(textureUrl, import.meta.url).href, this.scene, false, false);
     material.specularColor = new Color3(0.2, 0.2, 0.2);
     material.backFaceCulling = false;
     mesh.material = material;

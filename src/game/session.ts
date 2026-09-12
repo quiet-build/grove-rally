@@ -4,6 +4,7 @@
  */
 import sim from "../upstream/sim.js";
 import vehicle from "../upstream/vehicle.js";
+import collision from "../upstream/collision.js";
 import { Vector3, Quaternion } from "three";
 import { toyCar } from "./car";
 import { COURSE, START } from "./track";
@@ -99,6 +100,11 @@ export class RallySession {
   get nextCheckpoint() { return this.progress?.nextCheckpoint(0) ?? this.course[0]; }
   get vehicle() { return this.car; }
   assemble() { if (!this.sim) this.build(); }
+  addSceneryCollision(points: Array<Vector3 & { radius: number }>) {
+    this.assemble();
+    const SphereList = collision.SphereList as new (points: Array<Vector3 & { radius: number }>) => unknown;
+    this.sim!.addStaticObject(new SphereList(points));
+  }
   start() {
     if (!this.sim) this.build();
     else this.resetRun();

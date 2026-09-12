@@ -12,10 +12,13 @@ export function orchardTrack(): PlayTrack {
 }
 
 export async function loadNiceTrack(): Promise<PlayTrack | null> {
-  const url = "/tr/tracks/nice.png";
+  const url = new URL("/tr/tracks/nice.png", import.meta.url).href;
   const image = await loadImage(url).catch(() => null);
   if (!image) return null;
-  const terrain = new Heightfield({ maps: { height: decodeHeight(image, NICE_SCALE) } });
+  return valleyTrack(new Heightfield({ maps: { height: decodeHeight(image, NICE_SCALE) } }));
+}
+
+export function valleyTrack(terrain: Heightfield): PlayTrack {
   const gate = pickGate(terrain);
   const rx = 280;
   const ry = 170;
@@ -77,6 +80,7 @@ function pickGate(terrain: Heightfield) {
 function loadImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
+    image.crossOrigin = "anonymous";
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error(url));
     image.src = url;

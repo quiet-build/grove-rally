@@ -189,3 +189,10 @@ describe("orchard rally", () => {
     expect(play.body!.pos.y).toBeGreaterThan(toy.body!.pos.y);
   });
 });
+
+it('registered scenery contacts block the car instead of letting it pass through',()=>{
+ const run=(wall:boolean)=>{const s=new RallySession();s.start();
+ if(wall)s.addSceneryCollision([-2,-1,0,1,2].map(x=>Object.assign(new Vector3(START.pos[0]+x,START.pos[1]+10,3.2),{radius:1})));
+ s.throttle=1;for(let i=0;i<180;i++)s.update(.05);return s.body!.pos.y;};
+ expect(run(true)).toBeLessThan(run(false)-3);
+});

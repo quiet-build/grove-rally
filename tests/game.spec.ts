@@ -31,30 +31,3 @@ test("orchard controls, pause and restart work on keyboard and touch", async ({ 
   await expect(page.getByRole("button", { name: "Resume rally" })).toBeVisible();
   expect(errors).toEqual([]);
 });
-
-test("fullscreen button requests fullscreen and arrow keys still drive", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", e => errors.push(e.message));
-  await page.addInitScript(() => {
-    HTMLElement.prototype.requestFullscreen = async function (this: HTMLElement) {
-      Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => this });
-      document.dispatchEvent(new Event("fullscreenchange"));
-    };
-    document.exitFullscreen = async () => {
-      Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => null });
-      document.dispatchEvent(new Event("fullscreenchange"));
-    };
-  });
-  await page.goto("/");
-  const full = page.getByRole("button", { name: "Open fullscreen" });
-  await expect(full).toBeVisible();
-  await full.click();
-  await expect(page.getByRole("button", { name: "Exit fullscreen" })).toBeVisible();
-  await page.getByRole("button", { name: "Open the gate" }).click();
-  await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeEnabled();
-  await page.keyboard.down("ArrowUp");
-  await page.waitForTimeout(200);
-  await page.keyboard.up("ArrowUp");
-  await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeEnabled();
-  expect(errors).toEqual([]);
-});
