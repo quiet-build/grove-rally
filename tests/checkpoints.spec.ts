@@ -15,3 +15,18 @@ test('numbered checkpoint guidance advances and clears on restart', async ({page
   await expect(page.locator('.hud-navigation')).toContainText('Checkpoint 1');
   await expect(page.getByRole('status')).toHaveCount(0);
 });
+
+
+test.afterEach(async ({ page }, info) => {
+  if (info.status === info.expectedStatus) return;
+  console.log('Checkpoint failure state', await page.evaluate(async () => {
+    let frames = 0;
+    let running = true;
+    const count = () => { frames++; if (running) requestAnimationFrame(count); };
+    requestAnimationFrame(count);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    running = false;
+    return { text: document.body.innerText, visibility: document.visibilityState, frames,
+      canvas: [...document.querySelectorAll('canvas')].map(c => [c.width, c.height]) };
+  }));
+});
