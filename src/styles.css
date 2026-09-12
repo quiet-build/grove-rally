@@ -44,3 +44,5 @@
 @media(min-width:741px) { .play-area { max-width:none; } .board { aspect-ratio:16/10; } }
 :host .play-area { max-width:none; }
 :host .board { aspect-ratio:16/10; }
+
+.hud-navigation{position:absolute;top:62px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:8px;background:#18383ce8;color:#fff;font-size:13px;white-space:nowrap;text-shadow:none}.navigation-arrow{display:inline-block;font-size:29px;line-height:1}.hud-navigation small{display:block;font-size:11px;opacity:.8;margin-top:2px}.checkpoint-passed{position:absolute;top:120px;left:50%;transform:translateX(-50%);max-width:90%;padding:8px 12px;border-radius:8px;background:#236341f2;color:white;text-align:center;font-size:13px;text-shadow:none}

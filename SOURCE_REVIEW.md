@@ -20,7 +20,7 @@ Player problem: the accepted local prototype depended on restricted car meshes, 
 
 - `src/game/original-art.ts`: original compact rally car with sloping glass, roof stripe, spoiler and alloy wheels; layered seven-sided pines; rail fences; checkpoint gates and direction signs. These are newly authored Babylon primitives/vertices, not conversions or remeshes of upstream models.
 - `src/game/play-track.ts`: original analytic height samples. No upstream image or sampled terrain data is used. Changing terrain input changes slopes and course location; it does not change the heightfield or vehicle solver.
-- `src/game/babylon-view.ts`: original gravel texture noise, road tyre marks, dust sprite, sky palette, layered mountain backdrop and ground checkpoint outline. Scenery placement and existing trunk/rail collision proxies are preserved.
+- `src/game/babylon-view.ts`: original gravel texture noise, road tyre marks, dust sprite, sky palette, layered mountain backdrop and fixed numbered checkpoint signs. Scenery placement and existing trunk/rail collision proxies are preserved.
 - `src/game/music.ts`: new original alpine synth melody/timbre, using the existing audio lifecycle. No recording was downloaded.
 - `src/App.tsx`, `src/styles.css`: alpine rally typography, petrol-blue and ivory palette, original Grove Rally branding. Existing controls and modal flow remain.
 
@@ -36,3 +36,6 @@ Acceptance: original scene renders in a fresh normal browser; all twelve posts c
 ## Realism sample
 
 The later sample replaces the simple body with an original continuous wheel-arch shell, adds material-specific highlights and wheel details, and refines pine crowns, mountain ridgelines and gravel shading. It uses 3dviz-pro-max object-craft guidance, reviewed at d077e0e68915c25be8e71d74684d3144fd1c2aca; no kit code/assets or Three.js rendering template was copied. See REALISM_REVIEW.md for implementation, limits and final verification. Physical terrain, collision and camera logic remain unchanged by this visual pass.
+
+
+Checkpoint presentation now uses stationary numbered arch labels, per-checkpoint NEXT/DONE states, a HUD direction/distance indicator and completion feedback. Removed the interpolated yellow ring and travelling chevron; checkpoint coordinates and the existing acceptance radius/order remain authoritative. This is an original presentation change responding to user confusion, not reused upstream UI code. See ORIGINAL_ART.md and tests/checkpoints.spec.ts.

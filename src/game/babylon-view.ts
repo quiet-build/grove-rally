@@ -12,7 +12,6 @@ import {
   Engine,
   FreeCamera,
   HemisphericLight,
-  Material,
   Mesh,
   MeshBuilder,
   ParticleSystem,
@@ -64,8 +63,8 @@ export class BabylonView {
   private carYup = new Quaternion();
   private chassisView = new ThreeQuat();
   private dust: ParticleSystem | null = null;
-  private cpRing: TransformNode | null = null;
-  private cpHint: TransformNode | null = null;
+  private checkpointSigns: DynamicTexture[] = [];
+  private displayedCheckpoint = -1;
   private shadow: ShadowGenerator;
   private terrainMat: ShaderMaterial | null = null;
   private resize: ResizeObserver;
@@ -209,7 +208,7 @@ export class BabylonView {
         skidLevel: vehicle?.skidLevel ?? 0,
       });
     }
-    this.syncCheckpoint(delta);
+    this.syncCheckpoint();
     this.bindShadow();
   }
 
@@ -383,11 +382,7 @@ export class BabylonView {
           this.placeProp(chevron, cp.pos[0] + dx * t + sideX, cp.pos[1] + dy * t + sideY, yaw, 1.35, `chevron${i}_${t}`);
         }
       });
-      const hint = new TransformNode("cpHint", this.scene);
-      const sign = chevron.createInstance("cpHintSign");
-      sign.parent = hint;
-      sign.scaling.setAll(2.2);
-      this.cpHint = hint;
+
     }
   }
 
@@ -469,54 +464,32 @@ export class BabylonView {
   }
 
   private buildCheckpoint() {
-    const root = new TransformNode("cp", this.scene);
-    const mat = new StandardMaterial("cpring", this.scene);
-    mat.disableLighting = true;
-    mat.diffuseColor = new Color3(1, 0.69, 0.28);
-    mat.emissiveColor = new Color3(1, 0.69, 0.28);
-    mat.specularColor = Color3.Black();
-    mat.disableDepthWrite = true;
-    mat.alpha = 0.55;
-    mat.backFaceCulling = false;
-    mat.transparencyMode = Material.MATERIAL_ALPHABLEND;
-    const ring = MeshBuilder.CreateCylinder("checkpoint outline", {
-      height: 0.16, diameter: 32, tessellation: 64, cap: Mesh.NO_CAP, sideOrientation: Mesh.DOUBLESIDE,
-    }, this.scene);
-    ring.material = mat;
-    ring.parent = root;
-    ring.position.y = -1.6;
-    ring.renderingGroupId = 1;
-    ring.applyFog = false;
-    this.cpRing = root;
-    const first = this.session.course[0];
-    if (first) root.position.copyFrom(toView(first.pos[0], first.pos[1], first.pos[2] + 2));
+    this.session.course.forEach((cp, i) => {
+      const sign = MeshBuilder.CreatePlane(`checkpoint ${i + 1} sign`, {width: 8, height: 1.8}, this.scene);
+      sign.position.copyFrom(toView(cp.pos[0], cp.pos[1], cp.pos[2] + 6.7));
+      sign.billboardMode = Mesh.BILLBOARDMODE_Y;
+      sign.renderingGroupId = 1;
+      const texture = new DynamicTexture(`checkpoint ${i + 1}`, {width: 512, height: 128}, this.scene, false);
+      const material = new StandardMaterial(`checkpoint ${i + 1} label`, this.scene);
+      material.diffuseTexture = texture;
+      material.disableLighting = true;
+      material.emissiveColor = Color3.White();
+      material.backFaceCulling = false;
+      sign.material = material;
+      this.checkpointSigns.push(texture);
+    });
+    this.syncCheckpoint();
   }
 
-  private syncCheckpoint(delta: number) {
-    const ring = this.cpRing;
-    if (!ring) return;
-    const next = this.session.nextCheckpoint;
-    if (!next) {
-      ring.setEnabled(false);
-      this.cpHint?.setEnabled(false);
-      return;
-    }
-    ring.setEnabled(true);
-    ring.rotation.y += delta * 3;
-    const target = toView(next.pos[0], next.pos[1], next.pos[2] + 2);
-    const snap = this.session.view.checkpoint === 0 && this.session.view.time < 0.05 ? 1 : Math.min(1, delta * 2);
-    ring.position.x = pull(ring.position.x, target.x, snap);
-    ring.position.y = pull(ring.position.y, target.y, snap);
-    ring.position.z = pull(ring.position.z, target.z, snap);
-    const hint = this.cpHint;
-    if (hint) {
-      hint.setEnabled(true);
-      hint.position.copyFrom(ring.position);
-      hint.position.y += 3.2;
-      const i = this.session.view.checkpoint;
-      const after = this.session.course[(i + 1) % this.session.course.length];
-      if (after) hint.rotation.y = Math.atan2(after.pos[0] - next.pos[0], after.pos[1] - next.pos[1]);
-    }
+  private syncCheckpoint() {
+    const current = this.session.view.checkpoint;
+    if (current === this.displayedCheckpoint) return;
+    this.displayedCheckpoint = current;
+    this.checkpointSigns.forEach((texture, i) => {
+      const state = i < current ? 'DONE' : i === current ? 'NEXT' : 'CHECKPOINT';
+      const background = i < current ? '#347253' : i === current ? '#a65d18' : '#243e43';
+      texture.drawText(`${String(i + 1).padStart(2, '0')}  ${state}`, null, 84, 'bold 52px sans-serif', '#ffffff', background, true);
+    });
   }
 
   private buildDust() {

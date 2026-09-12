@@ -46,6 +46,13 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
   const active = view.status === "countdown" || view.status === "racing";
   const modal = !active;
   const total = session.course.length;
+  const [passed, setPassed] = useState({checkpoint: 0, time: 0});
+  useEffect(() => { setPassed({checkpoint: view.checkpoint, time: view.time}); }, [view.checkpoint]);
+  const target = session.nextCheckpoint;
+  const position = session.body?.pos;
+  const distance = target && position ? Math.hypot(target.pos[0] - position.x, target.pos[1] - position.y) : 0;
+  const bearing = target && position ? Math.atan2(target.pos[0] - position.x, target.pos[1] - position.y) - session.heading : 0;
+
   const applyKeys = () => {
     session.turn = Number(keys.current.has("arrowright") || keys.current.has("d")) - Number(keys.current.has("arrowleft") || keys.current.has("a"));
     session.throttle = Number(keys.current.has("arrowup") || keys.current.has("w"));
@@ -164,7 +171,7 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
     <div className="layout"><aside>
       <h1>Grove<br/> Rally<span aria-hidden="true" className="flower">↗</span></h1>
       <p className="intro">Through the pines.<br/>Find your line through the valley.</p>
-      <section className="level-ticket" aria-label="Course progress"><div><span>Checkpoints</span><strong data-testid="level">{Math.min(view.checkpoint + 1, total)} / {total}</strong></div><p>Grove Valley loop</p><p className="challenge">Drive past each post in order. Flip and the car sits itself back up. R returns you to the last post.</p><label htmlFor="progress">{view.checkpoint} of {total} posts passed</label><progress id="progress" max={total} value={view.checkpoint}/></section>
+      <section className="level-ticket" aria-label="Course progress"><div><span>Checkpoints</span><strong data-testid="level">{Math.min(view.checkpoint + 1, total)} / {total}</strong></div><p>Grove Valley loop</p><p className="challenge">Reach the numbered gates in order. NEXT marks your current checkpoint; DONE stays at each completed gate. R returns you to the last checkpoint.</p><label htmlFor="progress">{view.checkpoint} of {total} checkpoints completed</label><progress id="progress" max={total} value={view.checkpoint}/></section>
       <div className="scores"><div><span>Time</span><strong data-testid="score">{view.time.toFixed(1)}</strong></div><div><span>Best</span><strong data-testid="best">{best ? best.toFixed(1) : "—"}</strong></div><div><span>Next</span><strong>{view.checkpoint >= total ? "Gate" : `Post ${view.checkpoint + 1}`}</strong></div></div>
       <div className="utilities"><button type="button" className="secondary" disabled={!active} onClick={pause}>Pause</button><button type="button" className="secondary" disabled={view.status === "ready" || view.status === "finished"} onClick={reset}>Last post</button><button type="button" className="secondary" aria-pressed={!muted} onClick={() => { const next = !muted; setMuted(next); session.muted = next; chime.muted = next; next ? chime.suspend() : chime.unlock(); }}>{muted ? "Sound off" : "Sound on"}</button><button type="button" className="secondary" aria-pressed={fullscreen} onClick={toggleFullscreen}>{fullscreen ? "Exit full" : "Fullscreen"}</button></div>
     </aside><section className="play-area" aria-label="Orchard rally">
@@ -175,6 +182,11 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
           <div className="hud-time" aria-hidden="true"><span>TIME</span><strong data-testid="hud-time">{raceClock(view.time)}</strong></div>
           <div className="hud-ckpt" aria-hidden="true"><span>CKPT</span><strong>{Math.min(view.checkpoint + 1, total)} / {total}</strong></div>
           {(status === "countdown" || status === "racing") && <div className="hud-speed">{view.speed} km/h</div>}
+          {active && target && <div className="hud-navigation" aria-label={`Next checkpoint ${view.checkpoint + 1}, ${Math.round(distance)} metres`}>
+            <span className="navigation-arrow" aria-hidden="true" style={{transform: `rotate(${bearing}rad)`}}>↑</span>
+            <span>Checkpoint {view.checkpoint + 1}<small>{Math.round(distance)} m away</small></span>
+          </div>}
+          {passed.checkpoint > 0 && view.time - passed.time < 3 && <div className="checkpoint-passed" role="status">✓ Checkpoint {passed.checkpoint} complete{passed.checkpoint < total ? ` · Next: ${passed.checkpoint + 1}` : ' · Finish!'}</div>}
           {status === "countdown" && /^\d+$/.test(view.message) && <div className="hud-count">{view.message}</div>}
           {(view.flipped || view.recovering) && (
             <div className="hud-recover-alert" role="alert">
@@ -199,7 +211,7 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
         {modal && <div className="overlay"><section className="start-card" aria-labelledby="state-title"><div className="seal" aria-hidden="true">↗</div>
           <p className="eyebrow">{status === "finished" ? "Orchard complete" : "Pine Valley · Gravel stage"}</p>
           <h2 id="state-title">{status === "ready" ? "The valley is calling." : status === "paused" ? "Rally paused." : status === "finished" ? "Back through the gate." : "Ready."}</h2>
-          <p>{status === "ready" ? "Steer with the arrows. Hold accelerate to roll. Pass every wooden post in order, then stop the clock." : status === "paused" ? "The car will wait on the dirt." : status === "finished" ? view.message : view.message}</p>
+          <p>{status === "ready" ? "Steer with the arrows. Hold accelerate to roll. Follow the arrow to each numbered checkpoint. Reach all 12 to finish." : status === "paused" ? "The car will wait on the dirt." : status === "finished" ? view.message : view.message}</p>
           <button type="button" ref={primary} className="primary" onClick={status === "paused" ? resume : status === "finished" ? () => { session.retry(); chime.unlock(); } : start}>{status === "ready" ? "Open the gate" : status === "paused" ? "Resume rally" : status === "finished" ? "Retry orchard" : "Open the gate"}</button>
           {(status === "paused" || status === "finished") && <button type="button" className="text-button" onClick={start}>Restart rally</button>}
         </section></div>}
