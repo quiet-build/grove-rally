@@ -20,8 +20,6 @@ test("cross-origin component initializes its scene", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 test("play, pause, restart and host controls stay independent through reconnects", async ({ page }) => {
-  // CI software rendering needs time for both scene mounts and real keyboard input.
-  test.setTimeout(90000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
