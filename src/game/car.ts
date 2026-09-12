@@ -49,7 +49,8 @@ export const playCar = {
   wheelFrictionDynamic: 1.4,
   engine: {
     ...toyCar.engine,
-    powerscale: 3.5,
+    // Keep rear-wheel torque within tyre grip when accelerating out of a turn.
+    powerscale: 0.7,
     flywheel: 220,
   },
 };

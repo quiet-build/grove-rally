@@ -13,4 +13,18 @@ describe('original rally artwork', () => {
       }
     } finally { engine.dispose(); }
   });
+
+  it('lights the outside of the pine crown', () => {
+    const engine = new NullEngine();
+    try {
+      const tree = originalArt(new Scene(engine)).tree();
+      const positions = tree.getVerticesData('position')!;
+      const normals = tree.getVerticesData('normal')!;
+      const crownNormals = [];
+      for (let i = 0; i < positions.length; i += 3) {
+        if (positions[i + 1] > 2.7) crownNormals.push(normals[i + 1]);
+      }
+      expect(crownNormals.reduce((sum, y) => sum + y, 0) / crownNormals.length).toBeGreaterThan(0);
+    } finally { engine.dispose(); }
+  });
 });

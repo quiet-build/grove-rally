@@ -12,3 +12,9 @@ Physics, vehicle tuning, input handling, recovery, checkpoint progression and ti
 - The earlier machine-load explanation did not establish the cause of the blank scene. Chromium also needs execution outside the local sandbox to start successfully; this is a separate verification-environment issue.
 - Full production browser suite: 16 passed, 2 device-specific skips. Embedded component suite: 4 passed, including WebKit controls. Build contains no dist/tr assets.
 - No production publication or remote push performed. User visual/play acceptance remains pending before CI publication.
+
+## Steering-release follow-up
+
+User confirmed that continued spinning occurs after releasing Left while holding W. Production simulation reproduction with full throttle yielded 8.63 radians accumulated yaw over six seconds after left release (14.35 right). Reducing playCar powerscale from 3.5 to 0.7 eliminates the reproduced spins; both directions stay below pi/2 accumulated yaw and exceed 10 m/s. The solver and inputs are unchanged. Added steering.test.ts, with both cases red before tuning and green afterward. All 30 unit tests and production build pass.
+
+The initial browser run was inconclusive under heavy host load. Follow-up desktop acceptance passed all six driving/course cases. The final realism build passed the full suite: 16 browser cases, 2 device-specific skips, and 4 component cases. Preview at port 5208 serves the new build. No production publication.

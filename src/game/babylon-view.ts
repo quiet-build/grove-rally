@@ -309,18 +309,30 @@ export class BabylonView {
     const cy = this.session.course.reduce((sum, cp) => sum + cp.pos[1], 0) / this.session.course.length;
     const stone = new StandardMaterial("distant blue slate", this.scene);
     stone.diffuseColor = Color3.FromHexString("#647F83"); stone.specularColor = Color3.Black();
-    const snow = new StandardMaterial("sunlit limestone", this.scene);
-    snow.diffuseColor = Color3.FromHexString("#DFDFCA"); snow.specularColor = Color3.Black();
     for (let i = 0; i < 16; i++) {
       const angle = i * Math.PI * 2 / 16;
       const radius = 820 + Math.sin(i * 4.1) * 100;
       const x = cx + Math.cos(angle) * radius, y = cy + Math.sin(angle) * radius;
       const height = 170 + (Math.sin(i * 2.7) + 1) * 85;
       const base = this.session.terrain.getContact({x,y}).surfacePos.z - 12;
-      const peak = MeshBuilder.CreateCylinder(`slate ridge ${i}`, {height,diameterTop:0,diameterBottom:460,tessellation:7}, this.scene);
-      peak.position.set(x,base+height/2,y);peak.rotation.y=i;peak.scaling.z=.8;peak.material=stone;peak.renderingGroupId=1;
-      const cap = MeshBuilder.CreateCylinder(`pale summit ${i}`, {height:height*.22,diameterTop:0,diameterBottom:460*.22,tessellation:7}, this.scene);
-      cap.position.set(x,base+height*.89+.2,y);cap.rotation.y=i;cap.scaling.z=.8;cap.material=snow;cap.renderingGroupId=1;
+      const positions: number[]=[],indices: number[]=[],colors: number[]=[];
+      for(let level=0;level<4;level++)for(let j=0;j<12;j++) {
+        const a=j*Math.PI/6, taper=[1,.78,.5,.22][level];
+        const ridge=1+.22*Math.sin(j*7.3+i*2.1);
+        positions.push(x+Math.cos(a)*250*taper*ridge+level*18*Math.sin(i),
+          base+height*(level/3)*(1+.23*Math.sin(j*1.1+i)),
+          y+Math.sin(a)*160*taper*ridge);
+        const pale=level===3?1:.78+level*.06;
+        colors.push(pale,pale+.025,pale+.03,1);
+      }
+      for(let level=0;level<3;level++)for(let j=0;j<12;j++) {
+        const a=level*12+j,b=level*12+(j+1)%12;indices.push(a,b,a+12,b,b+12,a+12);
+      }
+      for(let j=1;j<11;j++) indices.push(36,36+j,36+j+1);
+      const peak=new Mesh(`weathered ridge ${i}`,this.scene), data=new VertexData();
+      data.positions=positions;data.indices=indices;data.colors=colors;data.normals=[];
+      VertexData.ComputeNormals(positions,indices,data.normals);data.applyToMesh(peak);
+      peak.material=stone;stone.backFaceCulling=false;peak.renderingGroupId=1;
     }
   }
 
@@ -658,18 +670,23 @@ void main() {
   vec3 n = normalize(vNormal);
   vec2 xz = vWorldPos.xz;
   vec3 dirt = texture2D(tDirt, xz / 4.0).rgb;
+  float coarse = texture2D(tDetail, xz / 53.0).r;
+  float grit = texture2D(tDetail, xz / 1.5).r;
+  float gx = texture2D(tDetail, xz / 1.5 + vec2(.0078,0.0)).r - grit;
+  float gz = texture2D(tDetail, xz / 1.5 + vec2(0.0,.0078)).r - grit;
   vec3 rock = texture2D(tRock, xz / 32.0).rgb;
   float detail = texture2D(tDetail, xz / 14.0).g;
   float vegMix = clamp(n.y * 0.65 + 0.35, 0.0, 1.0);
   vec3 veggie = mix(vec3(0.19, 0.34, 0.27), vec3(0.49, 0.61, 0.39), vegMix);
-  veggie *= 0.9 + detail * 0.25;
-  dirt *= 0.82 + detail * 0.32;
+  veggie *= 0.72 + coarse * 0.55 + detail * .12;
+  dirt *= 0.67 + coarse * .30 + detail * .28 + grit * .12;
   float rockMix = 1.0 - smoothstep(0.78, 0.96, n.y + (detail - 0.5) * 0.15);
   float roadDistance = pathDist(xz);
-  float trackMix = 1.0 - smoothstep(4.5, 9.5, roadDistance);
+  float trackMix = 1.0 - smoothstep(4.5, 9.5, roadDistance + (coarse-.5)*2.0);
   dirt *= 1.0 - .10 * (1.0 - smoothstep(.18, .6, abs(roadDistance - 1.7)));
   vec3 color = mix(mix(veggie, rock, rockMix), dirt, trackMix);
-  color *= max(0.32, dot(n, vSunDir));
+  vec3 groundNormal = normalize(n + vec3(gx, 0.0, gz) * trackMix * 1.5);
+  color *= .32 + .68 * max(0.0, dot(groundNormal, vSunDir));
   if (hasShadow > 0.5) {
     vec4 lp = lightMatrix * vec4(vWorldPos, 1.0);
     vec3 clip = lp.xyz / max(lp.w, 0.0001);
