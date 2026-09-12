@@ -17,3 +17,14 @@ describe("Trigger Rally car.js audio mapping", () => {
     expect(skidGain(10000)).toBeCloseTo(Math.log(2) * 0.6);
   });
 });
+
+import { musicLoop } from "./music";
+it("generates a finite, audible ten-second loop with quiet boundaries", () => {
+  const samples = musicLoop(8000);
+  expect(samples.length).toBe(80000);
+  expect(samples.every(Number.isFinite)).toBe(true);
+  expect(Math.max(...samples)).toBeGreaterThan(0.1);
+  expect(samples.every(sample => Math.abs(sample) < 1)).toBe(true);
+  expect(Math.abs(samples[0])).toBeLessThan(0.001);
+  expect(Math.abs(samples[samples.length - 1])).toBeLessThan(0.001);
+});

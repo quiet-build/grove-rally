@@ -8,6 +8,7 @@ import {
   Color3,
   Color4,
   DirectionalLight,
+  DynamicTexture,
   Engine,
   FreeCamera,
   HemisphericLight,
@@ -69,9 +70,13 @@ export class BabylonView {
   private terrainMat: ShaderMaterial | null = null;
   private resize: ResizeObserver;
   private driveAudio = new DriveAudio();
+  private stopAudio: () => void;
   private brakeMat: StandardMaterial | null = null;
 
   constructor(canvas: HTMLCanvasElement, private session: RallySession, onReady: () => void) {
+    this.stopAudio = session.subscribe(() => {
+      if (["paused", "ready", "finished"].includes(session.view.status)) this.driveAudio.silence();
+    });
     this.engine = new Engine(canvas, true);
     this.engine.renderEvenInBackground = false;
     this.scene = new Scene(this.engine);
@@ -130,6 +135,7 @@ export class BabylonView {
   dispose() {
     this.resize.disconnect();
     this.engine.stopRenderLoop();
+    this.stopAudio();
     this.driveAudio.dispose();
     this.engine.dispose();
   }
@@ -555,6 +561,18 @@ export class BabylonView {
     body.position.set(-toyCar.center[0], -toyCar.center[1], -toyCar.center[2]);
     // Mirror the body only. Flipping atlas U remaps the rear glass onto the wheel island.
     body.scaling.x = -1;
+    const badge = MeshBuilder.CreatePlane("Grove Rally badge", { width: 1.25, height: 0.3 }, this.scene);
+    badge.parent = this.carRoot;
+    badge.position.set(0, bodyMesh ? 0.45 : 0.25, bodyMesh ? -1.79 : -1.71);
+    badge.rotation.x = bodyMesh ? 0.65 : 0;
+    const badgeTexture = new DynamicTexture("Grove Rally", { width: 512, height: 128 }, this.scene, true);
+    badgeTexture.drawText("Grove Rally", null, 88, "bold 68px sans-serif", "#f5f4da", "#101914", true);
+    const badgeMaterial = new StandardMaterial("rally badge", this.scene);
+    badgeMaterial.diffuseTexture = badgeTexture;
+    badgeMaterial.emissiveColor = Color3.White();
+    badgeMaterial.disableLighting = true;
+    badge.material = badgeMaterial;
+    badge.renderingGroupId = 1;
     toyCar.wheels.forEach((cfg, i) => {
       const root = new TransformNode(`wheel${i}`, this.scene);
       root.parent = this.carRoot;

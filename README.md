@@ -12,6 +12,8 @@ pnpm dev
 
 `public/tr/` is gitignored. Do not commit or deploy those files. Without them the game falls back to the original orchard heightfield.
 
+Click **Sound off** to enable the original background music and driving sounds. Pausing silences both.
+
 ## Verify
 
 ```bash

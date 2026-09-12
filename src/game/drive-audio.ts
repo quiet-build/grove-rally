@@ -1,3 +1,5 @@
+import { musicLoop } from "./music";
+
 /**
  * Trigger Rally client/car.js audio mapping at 079ac532.
  * Official car sound buffers are not in the clone, so oscillators follow the
@@ -41,6 +43,12 @@ export class DriveAudio {
     this.skidGainNode.gain.setTargetAtTime(skidGain(input.skidLevel), ctx.currentTime, 0.04);
   }
 
+  silence() {
+    if (!this.context || !this.master) return;
+    this.master.gain.cancelScheduledValues(this.context.currentTime);
+    this.master.gain.setValueAtTime(0, this.context.currentTime);
+  }
+
   dispose() {
     void this.context?.close().catch(() => {});
     this.context = null;
@@ -54,6 +62,14 @@ export class DriveAudio {
     this.master = ctx.createGain();
     this.master.gain.value = 0;
     this.master.connect(ctx.destination);
+    const samples = musicLoop(ctx.sampleRate);
+    const musicBuffer = ctx.createBuffer(1, samples.length, ctx.sampleRate);
+    musicBuffer.getChannelData(0).set(samples);
+    const music = ctx.createBufferSource();
+    music.buffer = musicBuffer;
+    music.loop = true;
+    music.connect(this.master);
+    music.start();
     this.engine = ctx.createOscillator();
     this.engine.type = "sawtooth";
     this.engine.frequency.value = 70;
