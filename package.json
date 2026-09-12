@@ -17,6 +17,7 @@
     "test:component": "playwright test -c playwright.component.config.ts"
   },
   "dependencies": {
+    "@babylonjs/core": "^9.25.0",
     "phaser": "^3.90.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

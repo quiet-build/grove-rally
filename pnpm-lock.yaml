@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@babylonjs/core':
+        specifier: ^9.25.0
+        version: 9.25.0
       phaser:
         specifier: ^3.90.0
         version: 3.90.0
@@ -56,6 +59,9 @@ importers:
         version: 4.130.0
 
 packages:
+
+  '@babylonjs/core@9.25.0':
+    resolution: {integrity: sha512-PflCKhM0ZRQ1o/7fRsYic4r1ogBpE/ZxA/8wJ2K2C9wg7rc0rIkXMVTUAcAypAFeVtE0ix6sp3Bd4zbz/rfHBQ==}
 
   '@cloudflare/kv-asset-handler@0.5.0':
     resolution: {integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg==}
@@ -1225,6 +1231,8 @@ packages:
     resolution: {integrity: sha512-rLfVLB4FgQneDr0dv1oddCVZmKjcJ6yX6mS4pU82Mq/Dt9a3cLZQ62pDBL4AUO+uVrCvtWz3ZFUL2HFAFJ/BXQ==}
 
 snapshots:
+
+  '@babylonjs/core@9.25.0': {}
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 

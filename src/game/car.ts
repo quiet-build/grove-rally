@@ -1,17 +1,22 @@
-/** Original Grove Rally toy-car config matching Trigger Rally vehicle.js fields. Not upstream Content. */
+/**
+ * Car config in the same local frame Trigger Rally Game.setupVehicle expects:
+ * Y-up mesh space, Z forward. setupVehicle applies quat(1,1,1,1) so body +Y is roof.
+ * recover.triggerTime/releaseTime must satisfy releaseTime > triggerTime or recover()
+ * aborts on the first tick (vehicle.js). Official ArbusuG JSON is not in the clone.
+ */
 export const toyCar = {
   mass: 980,
-  dimensions: [1.7, 3.4, 1.35],
-  center: [0, 0, 0.48],
+  dimensions: [1.7, 1.35, 3.4],
+  center: [0, 0.48, 0],
   clips: [
-    { pos: [0, 0.2, 0.55], radius: 0.7 },
-    { pos: [0, -0.9, 0.5], radius: 0.62 },
+    { pos: [0, 0.55, 0.2], radius: 0.7 },
+    { pos: [0, 0.5, -0.9], radius: 0.62 },
   ],
   wheels: [
-    { pos: [-0.72, 1.15, 0.32], radius: 0.32, turn: 1, drive: 0 },
-    { pos: [0.72, 1.15, 0.32], radius: 0.32, turn: 1, drive: 0 },
-    { pos: [-0.72, -1.15, 0.32], radius: 0.34, turn: 0, drive: 1 },
-    { pos: [0.72, -1.15, 0.32], radius: 0.34, turn: 0, drive: 1 },
+    { pos: [-0.72, 0.32, 1.15], radius: 0.32, turn: 1, drive: 0, brake: 35 },
+    { pos: [0.72, 0.32, 1.15], radius: 0.32, turn: 1, drive: 0, brake: 35 },
+    { pos: [-0.72, 0.34, -1.15], radius: 0.34, turn: 0, drive: 1, brake: 25, handbrake: 45 },
+    { pos: [0.72, 0.34, -1.15], radius: 0.34, turn: 0, drive: 1, brake: 25, handbrake: 45 },
   ],
   engine: {
     powerscale: 0.22,
@@ -30,9 +35,21 @@ export const toyCar = {
   },
   recover: {
     posOffset: [0, 0, 4],
-    triggerTime: 8,
-    releaseTime: 1,
+    triggerTime: 1,
+    releaseTime: 2.5,
   },
   wheelFrictionStatic: 1.45,
   wheelFrictionDynamic: 1.15,
+};
+
+/** 3D play path only. toyCar stays the orchard default so session tests keep their distances. */
+export const playCar = {
+  ...toyCar,
+  wheelFrictionStatic: 1.8,
+  wheelFrictionDynamic: 1.4,
+  engine: {
+    ...toyCar.engine,
+    powerscale: 3.5,
+    flywheel: 220,
+  },
 };

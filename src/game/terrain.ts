@@ -28,8 +28,10 @@ export function makeHeights() {
   return data;
 }
 
-export class OrchardTerrain {
-  readonly source = { maps: { height: { data: makeHeights(), width: SIZE, height: SIZE, scale: SCALE } } };
+export type HeightMap = { data: Float32Array; width: number; height: number; scale: { x: number; y: number; z: number } };
+
+export class Heightfield {
+  constructor(readonly source: { maps: { height: HeightMap } }) {}
   getContact(pt: { x: number; y: number }) {
     return this.getContactRayZ(pt.x, pt.y);
   }
@@ -77,5 +79,11 @@ export class OrchardTerrain {
       ) * (mapHeight.scale.z / mapHeight.scale.y);
     const normal = new Vector3(-derivX, -derivY, 1).normalize();
     return { normal, surfacePos: new Vector3(x, y, height) };
+  }
+}
+
+export class OrchardTerrain extends Heightfield {
+  constructor() {
+    super({ maps: { height: { data: makeHeights(), width: SIZE, height: SIZE, scale: SCALE } } });
   }
 }

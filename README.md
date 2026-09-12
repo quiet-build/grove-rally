@@ -1,13 +1,16 @@
 # Grove Rally
 
-A Mini Arcade toy-car rally around an original peach orchard. Driving, timing and chase-camera math come from [Trigger Rally Online Edition](https://github.com/CodeArtemis/TriggerRally) (GPL-3.0). Maps, cars and art from that project are **not** included.
+A Mini Arcade rally. Driving, timing and chase-camera math come from [Trigger Rally Online Edition](https://github.com/CodeArtemis/TriggerRally) (GPL-3.0). The 3D view is Babylon.js. Trigger Rally maps/cars/textures are **not** in git.
 
 ## Play locally
 
 ```bash
 pnpm install
+scripts/fetch-tr-content.sh   # copies Content from a local Trigger Rally clone into public/tr/
 pnpm dev
 ```
+
+`public/tr/` is gitignored. Do not commit or deploy those files. Without them the game falls back to the original orchard heightfield.
 
 ## Verify
 
