@@ -16,7 +16,7 @@ test('music loops once and follows sound, pause and resume', async ({page}) => {
   });
   await page.goto('/');
   await page.getByRole('button', {name:'Open the gate',exact:true}).click();
-  await page.getByRole('button', {name:'Sound off',exact:true}).click();
+  await expect(page.getByRole('button', {name:'Sound on',exact:true})).toBeVisible();
   const state = () => page.evaluate(() => {
     const music = (window as any).musicSources.filter((entry: any) => entry.source.buffer?.duration === 10);
     return {count:music.length, loop:music[0]?.source.loop, gain:music[0]?.output?.gain.value, context:music[0]?.source.context.state};
@@ -32,4 +32,8 @@ test('music loops once and follows sound, pause and resume', async ({page}) => {
   await page.getByRole('button', {name:'Sound on',exact:true}).click();
   await expect.poll(async()=> (await state()).gain).toBeLessThan(.001);
   expect((await state()).count).toBe(1);
+  await page.getByRole('button', {name:'Pause',exact:true}).click();
+  await page.getByRole('button', {name:'Restart rally',exact:true}).click();
+  await expect(page.getByRole('button', {name:'Sound off',exact:true})).toBeVisible();
+  await expect.poll(async()=> (await state()).gain).toBeLessThan(.001);
 });

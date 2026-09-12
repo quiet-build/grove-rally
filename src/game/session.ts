@@ -77,7 +77,7 @@ export class RallySession {
   brake = 0;
   handbrake = 0;
   turn = 0;
-  muted = true;
+  muted = false;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   snapshot = () => this.view;
   private emit(change: Partial<View>) { this.view = { ...this.view, ...change }; this.listeners.forEach(fn => fn()); }

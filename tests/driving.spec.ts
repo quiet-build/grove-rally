@@ -19,9 +19,9 @@ test('held W survives countdown, drives and resumes after reset',async({page})=>
  await page.waitForTimeout(500);
  await expect(page.getByTestId('score')).toHaveText(time!);
  await page.getByRole('button',{name:'Resume rally',exact:true}).click();
- await page.getByRole('button',{name:'Sound off',exact:true}).click();
+ await page.getByRole('button',{name:'Sound on',exact:true}).click();
  await page.keyboard.press('Space');
- await expect(page.getByRole('button',{name:'Sound off',exact:true})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Sound on',exact:true})).toBeFocused();
 });
 
 test('pointer accelerator held before green drives without pressing again',async({page})=>{
@@ -75,7 +75,7 @@ test('handbrake slows the car and held W still works after using a utility butto
  await expect.poll(()=>readSpeed(page)).toBeLessThan(speed*.6);
  await page.keyboard.up('Space');
  await page.keyboard.press('r');
- await page.getByRole('button',{name:'Sound off',exact:true}).click();
+ await page.getByRole('button',{name:'Sound on',exact:true}).click();
  await page.keyboard.down('w');
  await expect.poll(()=>readSpeed(page)).toBeGreaterThan(5);
  await page.keyboard.up('w');

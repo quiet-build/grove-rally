@@ -12,7 +12,7 @@
 | `game/terrain.js`: Catmull-Rom height/contact sampling | `src/game/terrain.ts` |
 | `client/client.js`: chase-camera smoothing and velocity look-ahead | Existing `src/game/babylon-view.ts` camera update |
 
-No new engine or driving implementation was introduced for the art replacement. The code under `src/upstream/`, session, progress, contact sampler and chassis conversion is unchanged from `6d026d6`. The later steering-release fix reduces playCar engine powerscale from 3.5 to 0.7: excessive rear-wheel torque caused continued spinning under throttle after steering release. Both left/right production-track regression cases fail with the old tuning and pass with the revised tuning. Input handlers and audio lifecycle are retained; App changes are presentation copy only. The original twelve-checkpoint generation and start-placement algorithms are retained.
+No new engine or driving implementation was introduced for the art replacement. The code under `src/upstream/`, progress, contact sampler and chassis conversion is unchanged from `6d026d6`. The later steering-release fix reduces playCar engine powerscale from 3.5 to 0.7: excessive rear-wheel torque caused continued spinning under throttle after steering release. Both left/right production-track regression cases fail with the old tuning and pass with the revised tuning. Input handlers and audio lifecycle are retained. Later presentation changes add checkpoint guidance and enable audio by default at race start; session physics is unchanged. Engine/skid gain is reduced to leave room for the existing original music. The original twelve-checkpoint generation and start-placement algorithms are retained.
 
 ## Original replacement artwork — 2026-09-12
 

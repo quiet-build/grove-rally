@@ -39,8 +39,8 @@ export class DriveAudio {
     this.master.gain.setTargetAtTime(silent ? 0 : 0.12, ctx.currentTime, 0.05);
     const rate = Math.max(0.05, engineRate(input.engineAngVel, input.engineRpm));
     this.engine.frequency.setTargetAtTime(70 * rate, ctx.currentTime, 0.05);
-    this.engineGainNode.gain.setTargetAtTime(engineGain(input.throttle), ctx.currentTime, 0.05);
-    this.skidGainNode.gain.setTargetAtTime(skidGain(input.skidLevel), ctx.currentTime, 0.04);
+    this.engineGainNode.gain.setTargetAtTime(engineGain(input.throttle) * 0.4, ctx.currentTime, 0.05);
+    this.skidGainNode.gain.setTargetAtTime(skidGain(input.skidLevel) * 0.5, ctx.currentTime, 0.04);
   }
 
   silence() {

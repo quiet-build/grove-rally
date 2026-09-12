@@ -9,7 +9,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-No separate asset download is needed. Geometry, terrain samples, gravel/dust textures and the music are generated locally by the project. Click **Sound off** to enable music and driving audio. Pause silences both.
+No separate asset download is needed. Geometry, terrain samples, gravel/dust textures and the music are generated locally by the project. Starting a race enables music and driving audio by default. Click **Sound on** to mute both; the choice is retained through restarts within the session. Pause silences both.
 
 ## Verify
 

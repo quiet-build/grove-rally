@@ -33,10 +33,10 @@ export function App({ onReady, onError, onRoundEnded }: AppProps) {
 
 function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session: RallySession }) {
   const shell = useRef<HTMLDivElement>(null);
-  const [chime] = useState(() => new Chime());
+  const [chime] = useState(() => { const audio = new Chime(); audio.muted = false; return audio; });
   const view = useSyncExternalStore(session.subscribe, session.snapshot);
   const [best, setBest] = useState(readBest);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
