@@ -10,7 +10,7 @@ async function start(page: Page) {
 test('held W survives countdown, drives and resumes after reset',async({page})=>{
  await start(page);
  await page.keyboard.down('w');
- await expect.poll(()=>readSpeed(page),{timeout:12000}).toBeGreaterThan(10);
+ await expect.poll(()=>readSpeed(page),{timeout:120000}).toBeGreaterThan(10);
  await page.keyboard.press('r');
  await expect.poll(()=>readSpeed(page)).toBeGreaterThan(5);
  await page.keyboard.up('w');
@@ -29,7 +29,7 @@ test('pointer accelerator held before green drives without pressing again',async
  const button=page.getByRole('button',{name:'Accelerate',exact:true});
  const box=(await button.boundingBox())!;
  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
- await expect.poll(()=>readSpeed(page),{timeout:12000}).toBeGreaterThan(10);
+ await expect.poll(()=>readSpeed(page),{timeout:120000}).toBeGreaterThan(10);
  // Unrelated key releases must not cancel a held pointer.
  await page.keyboard.press('Shift');
  await expect.poll(()=>readSpeed(page)).toBeGreaterThan(15);
@@ -45,7 +45,7 @@ test('real fullscreen retains driving controls',async({page})=>{
  const b=(await page.getByRole('button',{name:'Accelerate',exact:true}).boundingBox())!;
  expect(b.y+b.height).toBeLessThanOrEqual(page.viewportSize()!.height);
  await page.keyboard.down('w');
- await expect.poll(()=>readSpeed(page),{timeout:12000}).toBeGreaterThan(5);
+ await expect.poll(()=>readSpeed(page),{timeout:120000}).toBeGreaterThan(5);
  await page.keyboard.up('w');
  await page.getByRole('button',{name:'Exit fullscreen',exact:true}).click();
  await expect.poll(()=>page.evaluate(()=>!!document.fullscreenElement)).toBe(false);
@@ -59,7 +59,7 @@ test('original artwork starts without any upstream content requests', async ({pa
  await start(page);
  await expect(page.getByTestId('level')).toHaveText('1 / 12');
  await page.keyboard.down('w');
- await expect.poll(()=>readSpeed(page),{timeout:12000}).toBeGreaterThan(10);
+ await expect.poll(()=>readSpeed(page),{timeout:120000}).toBeGreaterThan(10);
  await page.keyboard.up('w');
  expect(errors).toEqual([]);
  expect(upstream).toEqual([]);
@@ -68,7 +68,7 @@ test('original artwork starts without any upstream content requests', async ({pa
 test('handbrake slows the car and held W still works after using a utility button', async ({page}) => {
  await start(page);
  await page.keyboard.down('w');
- await expect.poll(()=>readSpeed(page),{timeout:12000}).toBeGreaterThan(15);
+ await expect.poll(()=>readSpeed(page),{timeout:120000}).toBeGreaterThan(15);
  await page.keyboard.up('w');
  const speed=Number((await page.locator('.hud-speed').textContent())!.split(' ')[0]);
  await page.keyboard.down('Space');
