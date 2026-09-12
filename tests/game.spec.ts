@@ -20,7 +20,7 @@ test("orchard controls, pause and restart work on keyboard and touch", async ({ 
   if (info.project.name === "mobile") await page.getByRole("button", { name: "Accelerate" }).tap();
   else await page.keyboard.press("ArrowUp");
   await page.getByRole("button", { name: "Pause", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "A little orchard break." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Rally paused." })).toBeVisible();
   await page.getByRole("button", { name: "Resume rally" }).click();
   await page.getByRole("button", { name: "Sound off" }).click();
   await expect(page.getByRole("button", { name: "Sound on" })).toHaveAttribute("aria-pressed", "true");

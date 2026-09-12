@@ -51,16 +51,18 @@ test('real fullscreen retains driving controls',async({page})=>{
  await expect.poll(()=>page.evaluate(()=>!!document.fullscreenElement)).toBe(false);
 });
 
-test('missing optional content still starts an eight-post race without script errors', async ({page}) => {
+test('original artwork starts without any upstream content requests', async ({page}) => {
  const errors: string[] = [];
  page.on('pageerror', error => errors.push(error.message));
- await page.route('**/tr/**', route => route.fulfill({status:404, body:'Not found'}));
+ const upstream: string[] = [];
+ page.on('request', request => {if(request.url().includes('/tr/')) upstream.push(request.url());});
  await start(page);
- await expect(page.getByTestId('level')).toHaveText('1 / 8');
+ await expect(page.getByTestId('level')).toHaveText('1 / 12');
  await page.keyboard.down('w');
  await expect.poll(()=>readSpeed(page),{timeout:12000}).toBeGreaterThan(10);
  await page.keyboard.up('w');
  expect(errors).toEqual([]);
+ expect(upstream).toEqual([]);
 });
 
 test('handbrake slows the car and held W still works after using a utility button', async ({page}) => {

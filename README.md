@@ -1,28 +1,25 @@
 # Grove Rally
 
-A Mini Arcade rally. Driving, timing and chase-camera math come from [Trigger Rally Online Edition](https://github.com/CodeArtemis/TriggerRally) (GPL-3.0). The 3D view is Babylon.js. Trigger Rally maps/cars/textures are **not** in git.
+An original alpine rally for Mini Arcade: a petrol-blue car, pine forests, pale mountain ridges and gravel roads. Babylon.js draws the scene; the existing GPL-3.0 Trigger Rally simulation handles driving.
 
-## Play locally
+## Run
 
-```bash
-pnpm install
-scripts/fetch-tr-content.sh   # copies Content from a local Trigger Rally clone into public/tr/
+```sh
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-`public/tr/` is gitignored. Do not commit or deploy those files. Without them the game falls back to the original orchard heightfield.
-
-Click **Sound off** to enable the original background music and driving sounds. Pausing silences both.
+No separate asset download is needed. Geometry, terrain samples, gravel/dust textures and the music are generated locally by the project. Click **Sound off** to enable music and driving audio. Pause silences both.
 
 ## Verify
 
-```bash
-pnpm test
-pnpm build
+```sh
+pnpm verify
+pnpm test:component
 ```
 
-`pnpm verify` also runs Playwright against the standalone page.
+The twelve-post integration test uses the same original terrain, course builder and car configuration as play. Desktop/mobile browser checks cover controls, fullscreen and audio. `static/` is the only directory copied into builds, so historical local-only `public/tr/` files are excluded.
 
 ## License
 
-Grove Rally is GPL-3.0 because it includes Trigger Rally source (vehicle, sim, collision, helpers) converted from AMD to ES modules. Original orchard heightfield, checkpoints, toy-car config and Phaser garden art are new. See `LICENSE`, `NOTICE` and `SOURCE_REVIEW.md`.
+GPL-3.0: `src/upstream/` derives from Trigger Rally's Source Code. No Trigger Rally Content is shipped. See `LICENSE`, `NOTICE` and `SOURCE_REVIEW.md`.

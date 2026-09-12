@@ -27,7 +27,7 @@ import {
   Vector3,
   VertexData,
 } from "@babylonjs/core";
-import { parseThreeJson, parseThreeScene } from "./three-json";
+import { originalArt } from "./original-art";
 import { toyCar } from "./car";
 import type { RallySession } from "./session";
 import { DriveAudio } from "./drive-audio";
@@ -71,6 +71,7 @@ export class BabylonView {
   private resize: ResizeObserver;
   private driveAudio = new DriveAudio();
   private stopAudio: () => void;
+  private art: ReturnType<typeof originalArt>;
   private brakeMat: StandardMaterial | null = null;
 
   constructor(canvas: HTMLCanvasElement, private session: RallySession, onReady: () => void) {
@@ -80,10 +81,11 @@ export class BabylonView {
     this.engine = new Engine(canvas, true);
     this.engine.renderEvenInBackground = false;
     this.scene = new Scene(this.engine);
+    this.art = originalArt(this.scene);
     this.scene.clearColor = new Color4(0.867, 0.933, 1, 1);
     this.scene.fogMode = Scene.FOGMODE_EXP2;
     this.scene.fogDensity = 0.00045;
-    this.scene.fogColor = new Color3(0.867, 0.933, 1);
+    this.scene.fogColor = new Color3(0.88, 0.86, 0.75);
     this.scene.ambientColor = new Color3(0.267, 0.4, 0.502);
 
     this.camera = new FreeCamera("chase", new Vector3(0, 20, 0), this.scene);
@@ -258,16 +260,22 @@ export class BabylonView {
     mesh.receiveShadows = true;
     mesh.renderingGroupId = 1;
     this.buildSky();
+    this.buildMountains();
   }
 
   private terrainMaterial() {
-    const wrap = (name: string, url: string, color: number[]) => {
-      const fallback = RawTexture.CreateRGBTexture(new Uint8Array(color), 1, 1, this.scene, false);
-      material.setTexture(name, fallback);
-      const tex = new Texture(new URL(url, import.meta.url).href, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE,
-        () => { if (!this.scene.isDisposed) material.setTexture(name, tex); });
-      tex.wrapU = Texture.WRAP_ADDRESSMODE;
-      tex.wrapV = Texture.WRAP_ADDRESSMODE;
+    const wrap = (name: string, color: number[], contrast: number) => {
+      const size = 128;
+      const pixels = new Uint8Array(size * size * 3);
+      for (let i = 0; i < size * size; i++) {
+        let hash = Math.imul(i ^ (i >>> 8), 0x45d9f3b);
+        hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b);
+        const grain = ((hash >>> 0) / 4294967296 - .5) * contrast;
+        for (let c = 0; c < 3; c++) pixels[i * 3 + c] = Math.max(0, Math.min(255, color[c] + grain));
+      }
+      const texture = RawTexture.CreateRGBTexture(pixels, size, size, this.scene, true);
+      texture.wrapU = texture.wrapV = Texture.WRAP_ADDRESSMODE;
+      material.setTexture(name, texture);
     };
     const pts: number[] = [];
     this.session.course.forEach(cp => pts.push(cp.pos[0], cp.pos[1]));
@@ -277,9 +285,9 @@ export class BabylonView {
       uniforms: ["world", "worldView", "worldViewProjection", "vSunDir", "vFogColor", "fogDensity", "nCpts", "cpts", "gate", "first", "lightMatrix", "hasShadow"],
       samplers: ["tDirt", "tRock", "tDetail", "shadowSampler"],
     });
-    wrap("tDirt", "/tr/textures/dirt.jpg", [153,120,80]);
-    wrap("tRock", "/tr/textures/rock.jpg", [120,125,110]);
-    wrap("tDetail", "/tr/textures/heightdetail1.jpg", [128,128,128]);
+    wrap("tDirt", [192,158,115], 28);
+    wrap("tRock", [118,142,145], 18);
+    wrap("tDetail", [128,128,128], 24);
     material.setVector3("vSunDir", SUN_DIR);
     material.setColor3("vFogColor", this.scene.fogColor);
     material.setFloat("fogDensity", this.scene.fogDensity);
@@ -294,6 +302,26 @@ export class BabylonView {
     material.backFaceCulling = false;
     this.terrainMat = material;
     return material;
+  }
+
+  private buildMountains() {
+    const cx = this.session.course.reduce((sum, cp) => sum + cp.pos[0], 0) / this.session.course.length;
+    const cy = this.session.course.reduce((sum, cp) => sum + cp.pos[1], 0) / this.session.course.length;
+    const stone = new StandardMaterial("distant blue slate", this.scene);
+    stone.diffuseColor = Color3.FromHexString("#647F83"); stone.specularColor = Color3.Black();
+    const snow = new StandardMaterial("sunlit limestone", this.scene);
+    snow.diffuseColor = Color3.FromHexString("#DFDFCA"); snow.specularColor = Color3.Black();
+    for (let i = 0; i < 16; i++) {
+      const angle = i * Math.PI * 2 / 16;
+      const radius = 820 + Math.sin(i * 4.1) * 100;
+      const x = cx + Math.cos(angle) * radius, y = cy + Math.sin(angle) * radius;
+      const height = 170 + (Math.sin(i * 2.7) + 1) * 85;
+      const base = this.session.terrain.getContact({x,y}).surfacePos.z - 12;
+      const peak = MeshBuilder.CreateCylinder(`slate ridge ${i}`, {height,diameterTop:0,diameterBottom:460,tessellation:7}, this.scene);
+      peak.position.set(x,base+height/2,y);peak.rotation.y=i;peak.scaling.z=.8;peak.material=stone;peak.renderingGroupId=1;
+      const cap = MeshBuilder.CreateCylinder(`pale summit ${i}`, {height:height*.22,diameterTop:0,diameterBottom:460*.22,tessellation:7}, this.scene);
+      cap.position.set(x,base+height*.89+.2,y);cap.rotation.y=i;cap.scaling.z=.8;cap.material=snow;cap.renderingGroupId=1;
+    }
   }
 
   private buildSky() {
@@ -317,9 +345,9 @@ export class BabylonView {
     void this.dressCourse();
   }
 
-  private async dressCourse() {
-    const arch = await this.loadScene("/tr/meshes/arch.r54.js", "/tr/textures/archtex.jpg", "arch");
-    const chevron = await this.loadScene("/tr/meshes/chevron.r54.js", "/tr/textures/chevron.jpg", "chevron");
+  private dressCourse() {
+    const arch = this.art.arch();
+    const chevron = this.art.chevron();
     if (this.scene.isDisposed) return;
     if (arch) {
       arch.setEnabled(false);
@@ -351,9 +379,9 @@ export class BabylonView {
     }
   }
 
-  private async buildScenery() {
-    const tree = await this.loadScene("/tr/scenery/tree36/tree36.js", "/tr/scenery/tree36/diffuse.png", "tree", 0.5);
-    const wood = await this.loadScene("/tr/scenery/wood_el1/wood_el1.js", "/tr/scenery/wood_el1/wood_elements1.jpg", "wood");
+  private buildScenery() {
+    const tree = this.art.tree();
+    const wood = this.art.fence();
     if (this.scene.isDisposed) return;
     if (tree) {
       tree.setEnabled(false);
@@ -428,65 +456,25 @@ export class BabylonView {
     return best;
   }
 
-  private async loadScene(url: string, textureUrl: string, name: string, alphaTest?: number) {
-    const response = await fetch(new URL(url, import.meta.url)).catch(() => null);
-    if (!response?.ok) return null;
-    const parsed = await response.text().then(parseThreeScene).catch(() => null);
-    if (!parsed || this.scene.isDisposed) return null;
-    const mesh = new Mesh(name, this.scene);
-    const vertex = new VertexData();
-    vertex.positions = parsed.positions;
-    vertex.indices = parsed.indices;
-    vertex.normals = parsed.normals.length ? parsed.normals : [];
-    vertex.uvs = parsed.uvs;
-    if (!vertex.normals.length) VertexData.ComputeNormals(parsed.positions, parsed.indices, vertex.normals = []);
-    vertex.applyToMesh(mesh);
-    const material = new StandardMaterial(`${name}mat`, this.scene);
-    const tex = new Texture(new URL(textureUrl, import.meta.url).href, this.scene, false, false);
-    material.diffuseTexture = tex;
-    material.specularColor = new Color3(0.12, 0.12, 0.12);
-    material.backFaceCulling = false;
-    if (alphaTest !== undefined) {
-      tex.hasAlpha = true;
-      material.useAlphaFromDiffuseTexture = true;
-      material.transparencyMode = Material.MATERIAL_ALPHATEST;
-      material.alphaCutOff = alphaTest;
-    }
-    mesh.material = material;
-    mesh.renderingGroupId = 1;
-    mesh.receiveShadows = true;
-    return mesh;
-  }
-
-
   private buildCheckpoint() {
     const root = new TransformNode("cp", this.scene);
     const mat = new StandardMaterial("cpring", this.scene);
     mat.disableLighting = true;
-    mat.diffuseColor = new Color3(0.18, 0.82, 0.22);
-    mat.emissiveColor = new Color3(0.18, 0.82, 0.22);
+    mat.diffuseColor = new Color3(1, 0.69, 0.28);
+    mat.emissiveColor = new Color3(1, 0.69, 0.28);
     mat.specularColor = Color3.Black();
     mat.disableDepthWrite = true;
     mat.alpha = 0.55;
     mat.backFaceCulling = false;
     mat.transparencyMode = Material.MATERIAL_ALPHABLEND;
-    for (let i = 0; i < 3; i++) {
-      const pivot = new TransformNode(`cpp${i}`, this.scene);
-      pivot.parent = root;
-      pivot.rotation.z = (Math.PI * 2 / 3) * i;
-      const ring = MeshBuilder.CreateCylinder(`cpr${i}`, {
-        height: 0.45,
-        diameter: 32,
-        tessellation: 32,
-        cap: Mesh.NO_CAP,
-        sideOrientation: Mesh.DOUBLESIDE,
-      }, this.scene);
-      ring.material = mat;
-      ring.parent = pivot;
-      ring.rotation.x = 1.1;
-      ring.renderingGroupId = 1;
-      ring.applyFog = false;
-    }
+    const ring = MeshBuilder.CreateCylinder("checkpoint outline", {
+      height: 0.16, diameter: 32, tessellation: 64, cap: Mesh.NO_CAP, sideOrientation: Mesh.DOUBLESIDE,
+    }, this.scene);
+    ring.material = mat;
+    ring.parent = root;
+    ring.position.y = -1.6;
+    ring.renderingGroupId = 1;
+    ring.applyFog = false;
     this.cpRing = root;
     const first = this.session.course[0];
     if (first) root.position.copyFrom(toView(first.pos[0], first.pos[1], first.pos[2] + 2));
@@ -525,7 +513,12 @@ export class BabylonView {
     emitter.position.set(0, 0.05, -1.2);
     emitter.isVisible = false;
     const dust = new ParticleSystem("dust", 500, this.scene);
-    dust.particleTexture = new Texture(new URL("/tr/textures/dust.png", import.meta.url).href, this.scene);
+    const dustTexture = new DynamicTexture("soft dust", 64, this.scene, false);
+    const context = dustTexture.getContext();
+    const gradient = context.createRadialGradient(32,32,0,32,32,32);
+    gradient.addColorStop(0,"rgba(255,255,255,.55)"); gradient.addColorStop(1,"rgba(255,255,255,0)");
+    context.fillStyle=gradient;context.fillRect(0,0,64,64);dustTexture.update();
+    dust.particleTexture = dustTexture;
     dust.emitter = emitter;
     dust.isLocal = true;
     dust.minEmitBox = new Vector3(-0.7, 0, -0.35);
@@ -550,21 +543,21 @@ export class BabylonView {
     this.dust = dust;
   }
 
-  private async buildCar() {
-    const bodyMesh = await this.loadMesh("/tr/meshes/car1-body.json", "/tr/meshes/car1-diff.jpg", "body");
-    const wheelMesh = await this.loadMesh("/tr/meshes/car1-wheel.json", "/tr/meshes/car1-diff.jpg", "wheel");
+  private buildCar() {
+    const bodyMesh = this.art.car();
+    const wheelMesh = this.art.wheel();
     if (this.scene.isDisposed) return;
-    const body = bodyMesh ?? MeshBuilder.CreateBox("body", { width: 1.7, height: 1.1, depth: 3.4 }, this.scene);
+    const body = bodyMesh;
     this.solidCar(body);
     this.shadow.addShadowCaster(body);
     body.parent = this.carRoot;
     body.position.set(-toyCar.center[0], -toyCar.center[1], -toyCar.center[2]);
-    // Mirror the body only. Flipping atlas U remaps the rear glass onto the wheel island.
+    // Local X reflection matches the existing physics-to-view conversion.
     body.scaling.x = -1;
     const badge = MeshBuilder.CreatePlane("Grove Rally badge", { width: 1.25, height: 0.3 }, this.scene);
     badge.parent = this.carRoot;
-    badge.position.set(0, bodyMesh ? 0.45 : 0.25, bodyMesh ? -1.79 : -1.71);
-    badge.rotation.x = bodyMesh ? 0.65 : 0;
+    badge.position.set(0, 0.27, -1.695);
+    badge.rotation.x = 0;
     const badgeTexture = new DynamicTexture("Grove Rally", { width: 512, height: 128 }, this.scene, true);
     badgeTexture.drawText("Grove Rally", null, 88, "bold 68px sans-serif", "#f5f4da", "#101914", true);
     const badgeMaterial = new StandardMaterial("rally badge", this.scene);
@@ -577,11 +570,11 @@ export class BabylonView {
       const root = new TransformNode(`wheel${i}`, this.scene);
       root.parent = this.carRoot;
       root.position.set(-(cfg.pos[0] - toyCar.center[0]), cfg.pos[1] - toyCar.center[1], cfg.pos[2] - toyCar.center[2]);
-      const mesh = wheelMesh ? wheelMesh.clone(`wheelmesh${i}`)! : MeshBuilder.CreateCylinder(`w${i}`, { height: 0.22, diameter: cfg.radius * 2 }, this.scene);
+      const mesh = wheelMesh.clone(`wheelmesh${i}`)!;
       this.solidCar(mesh);
       this.shadow.addShadowCaster(mesh);
       mesh.parent = root;
-      if (!wheelMesh) mesh.rotation.z = Math.PI / 2;
+
       this.wheels.push({ root, mesh });
     });
     if (wheelMesh) {
@@ -600,28 +593,6 @@ export class BabylonView {
       lamp.renderingGroupId = 1;
       lamp.isPickable = false;
     }
-  }
-
-  private async loadMesh(url: string, textureUrl: string, name: string) {
-    const response = await fetch(new URL(url, import.meta.url)).catch(() => null);
-    if (!response?.ok) return null;
-    const parsed = await response.text().then(parseThreeJson).catch(() => null);
-    if (!parsed || this.scene.isDisposed) return null;
-    const mesh = new Mesh(name, this.scene);
-    const vertex = new VertexData();
-    vertex.positions = parsed.positions;
-    vertex.indices = parsed.indices;
-    vertex.normals = parsed.normals.length ? parsed.normals : [];
-    vertex.uvs = parsed.uvs;
-    if (!vertex.normals.length) VertexData.ComputeNormals(parsed.positions, parsed.indices, vertex.normals = []);
-    vertex.applyToMesh(mesh);
-    const material = new StandardMaterial(`${name}mat`, this.scene);
-    material.diffuseTexture = new Texture(new URL(textureUrl, import.meta.url).href, this.scene, false, false);
-    material.specularColor = new Color3(0.2, 0.2, 0.2);
-    material.backFaceCulling = false;
-    mesh.material = material;
-    mesh.refreshBoundingInfo();
-    return mesh;
   }
 
   private solidCar(mesh: Mesh) {
@@ -690,11 +661,13 @@ void main() {
   vec3 rock = texture2D(tRock, xz / 32.0).rgb;
   float detail = texture2D(tDetail, xz / 14.0).g;
   float vegMix = clamp(n.y * 0.65 + 0.35, 0.0, 1.0);
-  vec3 veggie = mix(vec3(0.16, 0.22, 0.07), vec3(0.45, 0.52, 0.22), vegMix);
+  vec3 veggie = mix(vec3(0.19, 0.34, 0.27), vec3(0.49, 0.61, 0.39), vegMix);
   veggie *= 0.9 + detail * 0.25;
   dirt *= 0.82 + detail * 0.32;
   float rockMix = 1.0 - smoothstep(0.78, 0.96, n.y + (detail - 0.5) * 0.15);
-  float trackMix = 1.0 - smoothstep(4.5, 9.5, pathDist(xz));
+  float roadDistance = pathDist(xz);
+  float trackMix = 1.0 - smoothstep(4.5, 9.5, roadDistance);
+  dirt *= 1.0 - .10 * (1.0 - smoothstep(.18, .6, abs(roadDistance - 1.7)));
   vec3 color = mix(mix(veggie, rock, rockMix), dirt, trackMix);
   color *= max(0.32, dot(n, vSunDir));
   if (hasShadow > 0.5) {
@@ -727,8 +700,8 @@ precision highp float;
 varying vec3 vDir;
 void main() {
   float h = normalize(vDir).y;
-  vec3 zenith = vec3(0.52, 0.70, 0.90);
-  vec3 horizon = vec3(0.86, 0.91, 0.97);
+  vec3 zenith = vec3(0.29, 0.56, 0.66);
+  vec3 horizon = vec3(0.93, 0.85, 0.68);
   gl_FragColor = vec4(mix(horizon, zenith, smoothstep(-0.08, 0.55, h)), 1.0);
 }
 `;

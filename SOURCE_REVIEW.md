@@ -1,28 +1,33 @@
-# Source review — Grove Rally
+# Grove Rally source and artwork review
 
-Player problem: Mini Arcade had no short, kid-friendly rally with checkpoints, retry and a readable next post. Acceptance: one original orchard loop, one toy car, countdown then drive, posts in order, pause that freezes the sim, retry from the gate, recover after a flip.
+## Code reference retained
 
-Source: [CodeArtemis/TriggerRally](https://github.com/CodeArtemis/TriggerRally) at `079ac53216b74598b652ce3bf11478beb5c6832b` (browser Online Edition, not the C++ desktop game).
+[CodeArtemis/TriggerRally](https://github.com/CodeArtemis/TriggerRally), revision `079ac53216b74598b652ce3bf11478beb5c6832b`. Source Code is GPL-3.0; its separate Content license does not permit redistribution.
 
-| Upstream | Local |
+| Inspected upstream responsibility | Existing local implementation |
 |---|---|
-| `game/sim.js` `Sim(1/150)`, `tick` accumulator, `RigidBody` | `src/upstream/sim.js` ESM conversion. Three.js math only, no WebGL |
-| `game/vehicle.js` `AutomaticController`, suspension, friction, `recover` | `src/upstream/vehicle.js` plus original `src/game/car.ts` numbers |
-| `game/game.js` `Progress` (18m radius, no skip), `startTime = 3`, `setupVehicle` | `src/game/progress.ts`, `src/game/session.ts` |
-| `client/client.js` `CamControl.chaseCam` look-ahead `linVel * 0.17`, offset `[0,1.2,-3]`, `PULLTOWARD(..., delta * 5)`, FogExp2, 75° camera, Z-up | `src/game/babylon-view.ts` + leftover `src/game/cam.ts` |
-| `game/terrain.js` `getContactRayZ` catmullRom height + 16-bit `unpack16bit` | `src/game/terrain.ts` Heightfield; `play-track.ts` decodes `nice.png` locally |
-| `client/car.js` JSONLoader body/wheel, `flipY = false` | `src/game/three-json.ts` + Babylon mesh |
-| `game/track.js` image/scenery/quiver pipeline | Local heightmap + generated 12-post valley loop; original eight-post orchard when optional content is absent |
-| `util/recorder.js` ghosts | Not in v1 |
+| `game/sim.js`: fixed-step accumulator and rigid body | `src/upstream/sim.js` |
+| `game/vehicle.js`: drivetrain, suspension, friction and recovery | `src/upstream/vehicle.js`, original `src/game/car.ts` configuration |
+| `game/game.js`: ordered checkpoints and start delay | `src/game/progress.ts`, `src/game/session.ts` |
+| `game/terrain.js`: Catmull-Rom height/contact sampling | `src/game/terrain.ts` |
+| `client/client.js`: chase-camera smoothing and velocity look-ahead | Existing `src/game/babylon-view.ts` camera update |
 
-Code reused: ESM copies of `sim.js`, `vehicle.js`, `collision.js`, `util.js`, `pubsub.js` (GPL-3.0). Trigger Rally Content is loaded from gitignored `public/tr/` for local play only and must not be redistributed.
+No new engine or driving implementation was introduced for the art replacement. The code under `src/upstream/`, session, progress, car configuration, contact sampler and chassis conversion is unchanged from `6d026d6`. Input handlers and audio lifecycle are retained; App changes are presentation copy only. The original twelve-checkpoint generation and start-placement algorithms are retained.
 
-Why Babylon.js: the user asked for a 3D view that matches Trigger Rally. The original client is old THREE.js; Babylon.js Engine/Scene/FreeCamera/VertexData/StandardMaterial/CubeTexture are verified against current docs. Three.js stays for the upstream Vector3/Quaternion/Matrix4 physics API only.
+## Original replacement artwork — 2026-09-12
 
-Verification: `pnpm test` (Progress skip, sim motion, pause/retry, right-steer toward +X, a seeker finishes the orchard loop, THREE JSON quad parse). Typecheck after adding `@babylonjs/core`. Local play needs `scripts/fetch-tr-content.sh` then `pnpm dev`. Do not publish Content.
+Player problem: the accepted local prototype depended on restricted car meshes, textures, scenery and heightmap. A clean build therefore looked and played on different terrain. The new build uses only project-generated visual/audio resources:
 
-Current local view includes trees, arches, dust and the locally loaded car mesh. Checkpoints and vehicle tuning remain original adaptations, not an imported full TR course/config. Host catalog publish is not part of this rebuild.
+- `src/game/original-art.ts`: original compact rally car with sloping glass, roof stripe, spoiler and alloy wheels; layered seven-sided pines; rail fences; checkpoint gates and direction signs. These are newly authored Babylon primitives/vertices, not conversions or remeshes of upstream models.
+- `src/game/play-track.ts`: original analytic height samples. No upstream image or sampled terrain data is used. Changing terrain input changes slopes and course location; it does not change the heightfield or vehicle solver.
+- `src/game/babylon-view.ts`: original gravel texture noise, road tyre marks, dust sprite, sky palette, layered mountain backdrop and ground checkpoint outline. Scenery placement and existing trunk/rail collision proxies are preserved.
+- `src/game/music.ts`: new original alpine synth melody/timbre, using the existing audio lifecycle. No recording was downloaded.
+- `src/App.tsx`, `src/styles.css`: alpine rally typography, petrol-blue and ivory palette, original Grove Rally branding. Existing controls and modal flow remain.
 
-2026-09-12 driving review: corrected reflected coordinate conversion for body/wheels and verified actual play-car forward motion at all cardinal headings and after recovery. Scenery uses scaled trunk/rail sphere proxies through the upstream collision solver; these are local approximations, not copied scenery collision rules. Course generation is shared with the actual-heightmap simulation integration test. Cross-origin assets, missing-content terrain, native fullscreen, held inputs and disposal are covered in [DRIVING_FIXES.md](DRIVING_FIXES.md).
+This art direction is a local creative design, not a claim of upstream visual reuse. Existing source research supplied the retained driving/camera patterns; no third-party art pack was adopted. Babylon primitive, merge and texture APIs were verified against installed package declarations.
 
-Music and rear badge (2026-09-12): `src/game/music.ts` synthesizes an original four-bar 96 BPM loop, with no downloaded recording or upstream melody. It shares the existing sound/mute channel and is silenced synchronously on pause. A Babylon DynamicTexture rear-window badge displays Grove Rally without modifying or redistributing the local-only car atlas. Verified visually in Brave, plus 27 unit checks and desktop/mobile real-Web-Audio tests for looping, mute and pause/resume.
+## Distribution boundary and verification
+
+Vite copies only `static/`. Historical ignored `public/tr/` files cannot enter the build, even on a machine that still has the old local prototype. Runtime source contains no `/tr/` asset requests. The former content-copy script is removed. GPL source attribution remains in `LICENSE` and `NOTICE`.
+
+Acceptance: original scene renders in a fresh normal browser; all twelve posts can be completed with the unchanged production simulation/car; desktop and mobile control/music checks pass; no restricted content requests or artifacts; gameplay files remain unchanged. Full-course steering automation proves simulation completion, not physical-phone acceptance or a complete human-driven lap. See `ORIGINAL_ART.md` for final results and review status.

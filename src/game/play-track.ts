@@ -1,21 +1,19 @@
-import { COURSE, START } from "./track";
-import { Heightfield, OrchardTerrain, type HeightMap } from "./terrain";
+import { Heightfield } from "./terrain";
 import type { Checkpoint } from "./progress";
-
-/** Horizontal 4 m/px. z is a bit above common OE 0.05 so the valley actually rolls. */
-export const NICE_SCALE = { x: 4, y: 4, z: 0.08 };
 
 export type PlayTrack = { terrain: Heightfield; course: Checkpoint[]; start: { pos: number[]; rot: number[] } };
 
-export function orchardTrack(): PlayTrack {
-  return { terrain: new OrchardTerrain(), course: COURSE, start: START };
-}
-
-export async function loadNiceTrack(): Promise<PlayTrack | null> {
-  const url = new URL("/tr/tracks/nice.png", import.meta.url).href;
-  const image = await loadImage(url).catch(() => null);
-  if (!image) return null;
-  return valleyTrack(new Heightfield({ maps: { height: decodeHeight(image, NICE_SCALE) } }));
+/** Original valley samples. The existing heightfield sampler and course generator are unchanged. */
+export function originalValley(): Heightfield {
+  const width = 512;
+  const data = new Float32Array(width * width);
+  for (let y = 0; y < width; y++) for (let x = 0; x < width; x++) {
+    const dx = (x - 256) * 4, dy = (y - 256) * 4;
+    const rim = Math.max(0, Math.hypot(dx, dy) - 500);
+    data[x + y * width] = 80 + 5 * Math.sin(dx / 130) * Math.sin(dy / 155)
+      + 2 * Math.sin((dx + dy) / 85) + rim * rim / 4200;
+  }
+  return new Heightfield({ maps: { height: {data,width,height:width,scale:{x:4,y:4,z:1}} } });
 }
 
 export function valleyTrack(terrain: Heightfield): PlayTrack {
@@ -39,24 +37,7 @@ export function valleyTrack(terrain: Heightfield): PlayTrack {
 }
 
 export async function createPlayTrack(): Promise<PlayTrack> {
-  return (await loadNiceTrack()) ?? orchardTrack();
-}
-
-function decodeHeight(image: HTMLImageElement, scale: HeightMap["scale"]): HeightMap {
-  const width = image.width;
-  const height = image.height;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("heightmap canvas");
-  ctx.translate(0, height);
-  ctx.scale(1, -1);
-  ctx.drawImage(image, 0, 0);
-  const pix = ctx.getImageData(0, 0, width, height).data;
-  const data = new Float32Array(width * height);
-  for (let i = 0, p = 0; i < data.length; i++, p += 4) data[i] = pix[p] + pix[p + 1] * 256;
-  return { data, width, height, scale };
+  return valleyTrack(originalValley());
 }
 
 function pickGate(terrain: Heightfield) {
@@ -75,14 +56,4 @@ function pickGate(terrain: Heightfield) {
     }
   }
   return best;
-}
-
-function loadImage(url: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(url));
-    image.src = url;
-  });
 }

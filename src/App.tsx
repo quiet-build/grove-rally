@@ -160,15 +160,15 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
     const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button:not(:disabled)") : null;
     if (button && event.button === 0) { event.preventDefault(); button.focus({ preventScroll: true }); }
   }} className="shell">
-    <header><a className="back" href="https://playminiarcade.com">↖ Play Mini Arcade</a><span className="edition">A toy orchard rally</span></header>
+    <header><a className="back" href="https://playminiarcade.com">↖ Play Mini Arcade</a><span className="edition">ALPINE CLUB / 01</span></header>
     <div className="layout"><aside>
-      <h1>Grove<br/> Rally<span aria-hidden="true" className="flower">❀</span></h1>
-      <p className="intro">One little car.<br/>A Grove Valley loop of dirt arches.</p>
+      <h1>Grove<br/> Rally<span aria-hidden="true" className="flower">↗</span></h1>
+      <p className="intro">Through the pines.<br/>Find your line through the valley.</p>
       <section className="level-ticket" aria-label="Course progress"><div><span>Checkpoints</span><strong data-testid="level">{Math.min(view.checkpoint + 1, total)} / {total}</strong></div><p>Grove Valley loop</p><p className="challenge">Drive past each post in order. Flip and the car sits itself back up. R returns you to the last post.</p><label htmlFor="progress">{view.checkpoint} of {total} posts passed</label><progress id="progress" max={total} value={view.checkpoint}/></section>
       <div className="scores"><div><span>Time</span><strong data-testid="score">{view.time.toFixed(1)}</strong></div><div><span>Best</span><strong data-testid="best">{best ? best.toFixed(1) : "—"}</strong></div><div><span>Next</span><strong>{view.checkpoint >= total ? "Gate" : `Post ${view.checkpoint + 1}`}</strong></div></div>
       <div className="utilities"><button type="button" className="secondary" disabled={!active} onClick={pause}>Pause</button><button type="button" className="secondary" disabled={view.status === "ready" || view.status === "finished"} onClick={reset}>Last post</button><button type="button" className="secondary" aria-pressed={!muted} onClick={() => { const next = !muted; setMuted(next); session.muted = next; chime.muted = next; next ? chime.suspend() : chime.unlock(); }}>{muted ? "Sound off" : "Sound on"}</button><button type="button" className="secondary" aria-pressed={fullscreen} onClick={toggleFullscreen}>{fullscreen ? "Exit full" : "Fullscreen"}</button></div>
     </aside><section className="play-area" aria-label="Orchard rally">
-      <div className="board-heading"><span>Grove Rally · peach orchard</span><span className="orientation-hint">Rotate ↻ for wide view</span><span>{status === "racing" ? "On course" : status === "countdown" ? "Lights" : "A quiet garden gate"}</span></div>
+      <div className="board-heading"><span>GROVE RALLY / PINE VALLEY</span><span className="orientation-hint">Rotate ↻ for wide view</span><span>{status === "racing" ? "On course" : status === "countdown" ? "Lights" : "A quiet garden gate"}</span></div>
       <div className="board" ref={board} tabIndex={0} role="region" aria-label="Orchard course" aria-describedby="instructions" onPointerDown={() => board.current?.focus({ preventScroll: true })}>
         <div className="canvas-host" ref={host} aria-hidden="true"/>
         <div className="race-hud">
@@ -196,9 +196,9 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
           <button type="button" className="full-btn" aria-label="Reset to last post" disabled={!active} onClick={event => { event.stopPropagation(); reset(); }}>↺ Post (R)</button>
           <button type="button" className="full-btn" aria-pressed={fullscreen} aria-label={fullscreen ? "Exit fullscreen" : "Open fullscreen"} onClick={event => { event.stopPropagation(); toggleFullscreen(); }}>{fullscreen ? "Exit full" : "Fullscreen"}</button>
         </div>
-        {modal && <div className="overlay"><section className="start-card" aria-labelledby="state-title"><div className="seal" aria-hidden="true">❀</div>
-          <p className="eyebrow">{status === "finished" ? "Orchard complete" : "Toy car, dirt path"}</p>
-          <h2 id="state-title">{status === "ready" ? "Take the little car around the trees." : status === "paused" ? "A little orchard break." : status === "finished" ? "Back through the gate." : "Ready."}</h2>
+        {modal && <div className="overlay"><section className="start-card" aria-labelledby="state-title"><div className="seal" aria-hidden="true">↗</div>
+          <p className="eyebrow">{status === "finished" ? "Orchard complete" : "Pine Valley · Gravel stage"}</p>
+          <h2 id="state-title">{status === "ready" ? "The valley is calling." : status === "paused" ? "Rally paused." : status === "finished" ? "Back through the gate." : "Ready."}</h2>
           <p>{status === "ready" ? "Steer with the arrows. Hold accelerate to roll. Pass every wooden post in order, then stop the clock." : status === "paused" ? "The car will wait on the dirt." : status === "finished" ? view.message : view.message}</p>
           <button type="button" ref={primary} className="primary" onClick={status === "paused" ? resume : status === "finished" ? () => { session.retry(); chime.unlock(); } : start}>{status === "ready" ? "Open the gate" : status === "paused" ? "Resume rally" : status === "finished" ? "Retry orchard" : "Open the gate"}</button>
           {(status === "paused" || status === "finished") && <button type="button" className="text-button" onClick={start}>Restart rally</button>}
@@ -215,6 +215,6 @@ function Play({ session, onReady, onError, onRoundEnded }: AppProps & { session:
         <button type="button" className="arrow" aria-label="Handbrake" disabled={!active} {...hold("handbrake", 1)}>Handbrake</button>
       </div>
       <p id="instructions" style={{ margin: 0, padding: "8px" }}>Hold accelerate · Space handbrake · R last post · ← → / A D · P pause</p>
-    </section></div><footer><span>One car. One orchard. No ads.</span><span>Driving logic from Trigger Rally OE · original garden art.</span></footer>
+    </section></div><footer><span>One car. Open mountains. No ads.</span><span>Driving logic from Trigger Rally OE · original alpine art.</span></footer>
   </div>;
 }
