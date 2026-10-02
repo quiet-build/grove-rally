@@ -9,9 +9,9 @@ jobs:
   deploy:
     permissions:
       contents: write
-    uses: quiet-build/.github/.github/workflows/deploy-arcade-component.yml@8f75852775e54f88430743f90ef83ad1a936b14f
+    uses: quiet-build/.github/.github/workflows/deploy-arcade-component.yml@d555c9216c192be3b50cf415686981099d5c6f1d
     with:
-      support-sha: 8f75852775e54f88430743f90ef83ad1a936b14f
+      support-sha: d555c9216c192be3b50cf415686981099d5c6f1d
       game-id: grove-rally
       prebuild-command: "pnpm test && node --test tests/redirect.test.mjs"
       postbuild-command: "pnpm exec playwright install --with-deps webkit && pnpm exec playwright test --config playwright.component.config.ts && pnpm test:e2e"
