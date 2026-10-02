@@ -1,0 +1,3 @@
+# Arcade component deployment
+
+The pinned `quiet-build/.github` arcade workflow publishes only this game to the shared `mini-arcade-assets` R2 bucket. Existing source, component, standalone and applicable PWA/bundle gates run before publication. The complete relative-base distribution is stored under a content-addressed version; CDN bytes, CORS, cache headers and real Chromium module/CSP readiness must pass before switching the game’s `https://assets.playminiarcade.com/channels/grove-rally.js` entry. Failed verification leaves the previous entry unchanged. No Cloudflare Pages deployment or cumulative asset merge remains. Existing GitHub Pages publication, where configured, remains separate. Production writes are CI-only; update both full support SHA pins together.
